@@ -1,0 +1,87 @@
+"""
+Blockchain utility for Silasya DPP.
+
+Each product has a linked chain of SHA-256 entries — every data change
+is hashed with the previous hash, creating a tamper-evident audit trail
+that mirrors what the document describes as "immutable, timestamped
+decentralized ledger" entries.
+"""
+
+import hashlib
+import json
+from datetime import datetime
+
+from app.db import fetch_one, execute
+
+
+GENESIS_HASH = "0" * 64  # Genesis block sentinel
+
+
+def _compute_hash(data: dict, prev_hash: str) -> str:
+    """SHA-256 of (canonicalised JSON payload + previous hash)."""
+    raw = json.dumps(data, sort_keys=True, default=str) + prev_hash
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def append_chain_entry(
+    product_id: int,
+    entry_type: str,         # CREATION | UPDATE | CERTIFICATION | AUDIT | TRANSFER
+    payload: dict,
+    recorded_by: str = "system",
+    ledger_ref: str = None,
+) -> str:
+    """
+    Append an immutable entry to this product's blockchain chain.
+    Returns the new data_hash.
+    """
+    # Fetch the latest hash for this product
+    prev_row = fetch_one(
+        "SELECT data_hash FROM blockchain_entries "
+        "WHERE product_id = %s ORDER BY id DESC LIMIT 1",
+        (product_id,),
+    )
+    prev_hash = prev_row["data_hash"] if prev_row else GENESIS_HASH
+
+    data_hash = _compute_hash(payload, prev_hash)
+
+    execute(
+        """INSERT INTO blockchain_entries
+               (product_id, entry_type, data_hash, previous_hash,
+                ledger_ref, recorded_by, recorded_at)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        (
+            product_id,
+            entry_type,
+            data_hash,
+            prev_hash,
+            ledger_ref,
+            recorded_by,
+            datetime.utcnow(),
+        ),
+    )
+    return data_hash
+
+
+def verify_chain(product_id: int) -> dict:
+    """
+    Walk the full chain for a product and verify every link is intact.
+    Returns {"valid": bool, "entries": int, "broken_at": id|None}
+    """
+    from app.db import fetch_all
+
+    rows = fetch_all(
+        "SELECT id, entry_type, data_hash, previous_hash, recorded_at "
+        "FROM blockchain_entries WHERE product_id = %s ORDER BY id",
+        (product_id,),
+    )
+
+    if not rows:
+        return {"valid": True, "entries": 0, "broken_at": None}
+
+    prev_hash = GENESIS_HASH
+    for row in rows:
+        if row["previous_hash"] != prev_hash:
+            return {"valid": False, "entries": len(rows), "broken_at": row["id"]}
+        prev_hash = row["data_hash"]
+
+    return {"valid": True, "entries": len(rows), "broken_at": None}

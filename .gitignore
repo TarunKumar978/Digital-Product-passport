@@ -1,0 +1,29 @@
+# Environment variables
+.env
+dppbackend/.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Logs
+*.log
+flask.log
+ngrok.log
+ngrok_frontend.log
+httpserver.log
+
+# Uploads (optional - remove if you want to track sample assets)
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ngrok
+*.ngrok*
+.env.save

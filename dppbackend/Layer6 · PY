@@ -1,0 +1,113 @@
+"""
+Layer 6 — Performance & Care
+Data points per DPP doc:
+  - Digital care labels with "wash less / cold wash" instructions
+  - Durability Score (estimated lifecycle based on fabric testing)
+"""
+
+from flask import Blueprint, request, g
+
+from app.db import fetch_one, execute
+from app.utils.auth import require_auth
+from app.utils.helpers import ok, created, bad_request, not_found, require_fields, serialise
+
+layer6_bp = Blueprint("layer6", __name__, url_prefix="/api/products/<int:pid>/care")
+
+
+def _check_product(pid):
+    return fetch_one("SELECT id FROM products WHERE id = %s AND is_active = 1", (pid,))
+
+
+@layer6_bp.route("", methods=["GET"])
+def get_care(pid):
+    """Get performance and care data."""
+    if not _check_product(pid):
+        return not_found("Product")
+
+    care = fetch_one("SELECT * FROM care_performance WHERE product_id = %s", (pid,))
+    if not care:
+        return not_found("Care and performance data")
+    return ok(serialise(care))
+
+
+@layer6_bp.route("", methods=["POST"])
+@require_auth(roles=["admin", "brand_partner"])
+def set_care(pid):
+    """
+    Create or update care & performance data (upsert).
+    Body: {
+        wash_instructions*,     e.g. "Cold wash 30°C, wash less, air dry"
+        durability_score?,      0–100
+        estimated_life_years?,
+        fabric_test_report_url?,
+        care_symbols?,          JSON array of ISO care symbols e.g. ["30C","no_tumble","iron_low"]
+        storage_instructions?,
+        repair_guidance?,
+    }
+    """
+    if not _check_product(pid):
+        return not_found("Product")
+
+    data = request.get_json(silent=True) or {}
+    missing = require_fields(data, ("wash_instructions",))
+    if missing:
+        return bad_request(f"'{missing}' is required")
+
+    score = data.get("durability_score")
+    if score is not None and not (0 <= int(score) <= 100):
+        return bad_request("durability_score must be 0–100")
+
+    import json as _json
+    care_symbols_json = None
+    if data.get("care_symbols"):
+        try:
+            care_symbols_json = _json.dumps(data["care_symbols"])
+        except (TypeError, ValueError):
+            return bad_request("care_symbols must be a valid JSON array")
+
+    existing = fetch_one("SELECT id FROM care_performance WHERE product_id = %s", (pid,))
+
+    if existing:
+        execute(
+            """UPDATE care_performance SET
+                   wash_instructions      = %s,
+                   durability_score       = %s,
+                   estimated_life_years   = %s,
+                   fabric_test_report_url = %s,
+                   care_symbols           = %s,
+                   storage_instructions   = %s,
+                   repair_guidance        = %s
+               WHERE product_id = %s""",
+            (
+                data["wash_instructions"],
+                score,
+                data.get("estimated_life_years"),
+                data.get("fabric_test_report_url"),
+                care_symbols_json,
+                data.get("storage_instructions"),
+                data.get("repair_guidance"),
+                pid,
+            )
+        )
+        msg = "Care data updated"
+    else:
+        execute(
+            """INSERT INTO care_performance
+                   (product_id, wash_instructions, durability_score,
+                    estimated_life_years, fabric_test_report_url,
+                    care_symbols, storage_instructions, repair_guidance)
+               VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (
+                pid,
+                data["wash_instructions"],
+                score,
+                data.get("estimated_life_years"),
+                data.get("fabric_test_report_url"),
+                care_symbols_json,
+                data.get("storage_instructions"),
+                data.get("repair_guidance"),
+            )
+        )
+        msg = "Care data created"
+
+    return created({"message": msg})

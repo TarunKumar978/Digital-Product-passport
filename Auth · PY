@@ -1,0 +1,77 @@
+"""
+JWT authentication utilities for Silasya DPP API.
+"""
+
+from datetime import datetime, timedelta
+from functools import wraps
+
+import jwt
+from flask import request, jsonify, g, current_app
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from app.db import fetch_one
+
+
+# ── Token helpers ─────────────────────────────────────────────────────────────
+
+def create_token(user_id: int, role: str) -> str:
+    payload = {
+        "sub":  user_id,
+        "role": role,
+        "iat":  datetime.utcnow(),
+        "exp":  datetime.utcnow() + timedelta(
+            hours=current_app.config["JWT_EXPIRY_HOURS"]
+        ),
+    }
+    return jwt.encode(payload, current_app.config["SECRET_KEY"], algorithm="HS256")
+
+
+def decode_token(token: str) -> dict:
+    return jwt.decode(
+        token, current_app.config["SECRET_KEY"], algorithms=["HS256"]
+    )
+
+
+def hash_password(plain: str) -> str:
+    return generate_password_hash(plain)
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return check_password_hash(hashed, plain)
+
+
+# ── Auth decorator ────────────────────────────────────────────────────────────
+
+def require_auth(roles: list = None):
+    """
+    Decorator that validates Bearer JWT.
+    Optionally restricts to specific roles.
+    Sets g.current_user = {"sub": id, "role": role}
+    """
+    def decorator(fn):
+        @wraps(fn)
+        def wrapper(*args, **kwargs):
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return jsonify({"error": "Authorization header missing or malformed"}), 401
+
+            token = auth_header.split(" ", 1)[1]
+            try:
+                payload = decode_token(token)
+            except jwt.ExpiredSignatureError:
+                return jsonify({"error": "Token has expired"}), 401
+            except jwt.InvalidTokenError as e:
+                return jsonify({"error": f"Invalid token: {str(e)}"}), 401
+
+            if roles and payload.get("role") not in roles:
+                return jsonify({
+                    "error": "Insufficient permissions",
+                    "required_roles": roles,
+                    "your_role": payload.get("role"),
+                }), 403
+
+            g.current_user = payload
+            return fn(*args, **kwargs)
+
+        return wrapper
+    return decorator

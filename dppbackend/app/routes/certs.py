@@ -1,0 +1,207 @@
+"""
+Compliance Certificates
+Covers all three regulatory markets from the DPP doc:
+  EU  — ESPR / DPP mandate, Green Claims Directive (GOTS, SA8000)
+  US  — UFLPA forced labour prevention (farm-level traceability)
+  UK  — Green Claims Code (CMA)
+  GLOBAL — GOTS, RSL, SA8000
+"""
+
+from flask import Blueprint, request, g
+
+from app.db import fetch_one, fetch_all, execute
+from app.utils.auth import require_auth
+from app.utils.blockchain import append_chain_entry
+from app.utils.helpers import ok, created, bad_request, not_found, require_fields, serialise
+
+certs_bp = Blueprint("certs", __name__, url_prefix="/api/products/<int:pid>/certificates")
+
+VALID_CERT_TYPES = {
+    "GOTS", "SA8000", "SMETA", "OEKO-TEX",
+    "ESPR", "EU_GREEN_CLAIMS",
+    "UFLPA", "US_CBP",
+    "UK_GREEN_CLAIMS", "CMA",
+    "RSL", "REACH", "BLUESIGN",
+    "FAIR_TRADE", "BCI", "CUSTOM"
+}
+
+VALID_JURISDICTIONS = {"EU", "US", "UK", "INDIA", "GLOBAL"}
+
+
+@certs_bp.route("", methods=["GET"])
+def list_certs(pid):
+    """List all compliance certificates for a product."""
+    if not fetch_one("SELECT id FROM products WHERE id = %s", (pid,)):
+        return not_found("Product")
+
+    jurisdiction = request.args.get("jurisdiction")
+    if jurisdiction:
+        certs = fetch_all(
+            "SELECT * FROM certificates WHERE product_id = %s AND jurisdiction = %s ORDER BY id",
+            (pid, jurisdiction)
+        )
+    else:
+        certs = fetch_all(
+            "SELECT * FROM certificates WHERE product_id = %s ORDER BY id",
+            (pid,)
+        )
+
+    # Flag any expired certs
+    from datetime import date
+    today = date.today()
+    result = []
+    for c in certs:
+        c = dict(c)
+        if c.get("expiry_date"):
+            c["is_expired"] = c["expiry_date"] < today
+        result.append(c)
+
+    return ok({"product_id": pid, "certificates": serialise(result)})
+
+
+@certs_bp.route("", methods=["POST"])
+@require_auth(roles=["admin", "brand_partner"])
+def add_cert(pid):
+    """
+    Add a compliance certificate.
+    Body: {
+        cert_type*,        e.g. GOTS | SA8000 | UFLPA | ESPR | RSL | ...
+        cert_number?,
+        issuing_body?,
+        issued_date?,
+        expiry_date?,
+        cert_url?,         link to certificate document
+        jurisdiction?,     EU | US | UK | INDIA | GLOBAL
+        notes?
+    }
+    """
+    if not fetch_one("SELECT id FROM products WHERE id = %s", (pid,)):
+        return not_found("Product")
+
+    data = request.get_json(silent=True) or {}
+    missing = require_fields(data, ("cert_type",))
+    if missing:
+        return bad_request(f"'{missing}' is required")
+
+    jurisdiction = data.get("jurisdiction", "GLOBAL").upper()
+    if jurisdiction not in VALID_JURISDICTIONS:
+        return bad_request(f"Invalid jurisdiction. Allowed: {', '.join(VALID_JURISDICTIONS)}")
+
+    cid = execute(
+        """INSERT INTO certificates
+               (product_id, cert_type, cert_number, issuing_body,
+                issued_date, expiry_date, cert_url, jurisdiction, notes)
+           VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        (
+            pid,
+            data["cert_type"].upper(),
+            data.get("cert_number"),
+            data.get("issuing_body"),
+            data.get("issued_date"),
+            data.get("expiry_date"),
+            data.get("cert_url"),
+            jurisdiction,
+            data.get("notes"),
+        )
+    )
+
+    # Blockchain CERTIFICATION entry
+    append_chain_entry(
+        pid, "CERTIFICATION",
+        {
+            "cert_type":    data["cert_type"],
+            "cert_number":  data.get("cert_number"),
+            "issuing_body": data.get("issuing_body"),
+            "jurisdiction": jurisdiction,
+        },
+        recorded_by=str(g.current_user["sub"])
+    )
+
+    return created({"message": "Certificate added", "cert_id": cid})
+
+
+@certs_bp.route("/<int:cid>", methods=["DELETE"])
+@require_auth(roles=["admin", "brand_partner"])
+def delete_cert(pid, cid):
+    if not fetch_one("SELECT id FROM certificates WHERE id = %s AND product_id = %s", (cid, pid)):
+        return not_found("Certificate")
+    execute("DELETE FROM certificates WHERE id = %s", (cid,))
+    return ok({"message": "Certificate removed"})
+
+
+@certs_bp.route("/regulatory-check", methods=["GET"])
+def regulatory_check(pid):
+    """
+    Returns a per-regulation compliance check based on available certs.
+    Maps directly to the 3 key markets in the DPP document.
+    """
+    if not fetch_one("SELECT id FROM products WHERE id = %s", (pid,)):
+        return not_found("Product")
+
+    certs = fetch_all(
+        "SELECT cert_type, jurisdiction, expiry_date, cert_number FROM certificates WHERE product_id = %s",
+        (pid,)
+    )
+    from datetime import date
+    today = date.today()
+    valid_certs = [c for c in certs if not c["expiry_date"] or c["expiry_date"] >= today]
+    cert_types  = {c["cert_type"] for c in valid_certs}
+    juris_set   = {c["jurisdiction"] for c in valid_certs}
+
+    # EU: ESPR / Green Claims Directive
+    eu_compliant  = bool({"ESPR", "EU_GREEN_CLAIMS", "GOTS"} & cert_types and
+                         {"EU", "GLOBAL"} & juris_set)
+
+    # US: UFLPA (requires farm-level traceability — GOTS + UFLPA)
+    us_compliant  = bool({"UFLPA", "US_CBP"} & cert_types or
+                         ("GOTS" in cert_types and fetch_one(
+                             "SELECT id FROM product_materials WHERE product_id=%s AND farm_name IS NOT NULL AND gots_cert_url IS NOT NULL",
+                             (pid,)
+                         )))
+
+    # UK: Green Claims Code (CMA)
+    uk_compliant  = bool({"UK_GREEN_CLAIMS", "CMA", "GOTS"} & cert_types)
+
+    # Chemical safety
+    rsl_compliant = "RSL" in cert_types or bool(fetch_one(
+        "SELECT id FROM product_materials WHERE product_id=%s AND rsl_compliant=1",
+        (pid,)
+    ))
+
+    # Social compliance
+    social_compliant = bool({"SA8000", "SMETA", "FAIR_TRADE"} & cert_types)
+
+    env_data = fetch_one("SELECT id FROM environmental_impact WHERE product_id=%s", (pid,))
+
+    return ok({
+        "product_id": pid,
+        "regulatory_compliance": {
+            "EU_ESPR_DPP": {
+                "compliant": eu_compliant,
+                "risk":      "4% turnover fine if non-compliant" if not eu_compliant else None,
+                "mandate":   "Mandatory DPP for textiles ~2026/27",
+            },
+            "US_UFLPA": {
+                "compliant": us_compliant,
+                "risk":      "100% cargo seizure at US border" if not us_compliant else None,
+                "mandate":   "Farm-level traceability required",
+            },
+            "UK_Green_Claims": {
+                "compliant": uk_compliant,
+                "risk":      "Unlimited CMA fines + reputational damage" if not uk_compliant else None,
+                "mandate":   "All eco-claims must be data-backed",
+            },
+            "RSL_Chemical_Safety": {
+                "compliant": rsl_compliant,
+            },
+            "Social_Compliance_SA8000": {
+                "compliant": social_compliant,
+            },
+            "LCA_Environmental_Data": {
+                "compliant": bool(env_data),
+            },
+        },
+        "overall_passport_ready": all([eu_compliant, us_compliant, uk_compliant, rsl_compliant]),
+        "certificates_on_record": len(certs),
+        "expired_certificates":   len(certs) - len(valid_certs),
+    })

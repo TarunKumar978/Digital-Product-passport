@@ -1,0 +1,305 @@
+# Silasya Earth — Digital Product Passport Backend
+### Python (Flask) + MySQL · Production-Ready
+
+---
+
+## Project Structure
+
+```
+silasya_dpp/
+├── run.py                      # Entry point
+├── requirements.txt
+├── .env.example
+├── schema.sql                  # Full MySQL schema (run this first)
+├── config/
+│   └── settings.py             # All config from .env
+└── app/
+    ├── __init__.py             # App factory
+    ├── db.py                   # MySQL connection + query helpers
+    ├── routes/
+    │   ├── auth.py             # Register, login, profile
+    │   ├── passport.py         # PUBLIC QR scan endpoint (all 7 layers)
+    │   ├── products.py         # Layer 1 — Product Identification
+    │   ├── layer2.py           # Layer 2 — Raw Material Traceability
+    │   ├── layer3.py           # Layer 3 — Manufacturing / Artisan Story
+    │   ├── layer4.py           # Layer 4 — Environmental Impact
+    │   ├── layer5.py           # Layer 5 — Circularity & Recyclability
+    │   ├── layer6.py           # Layer 6 — Performance & Care
+    │   ├── layer7.py           # Layer 7 — Blockchain Verification
+    │   ├── certs.py            # Compliance Certificates (GOTS, UFLPA, ESPR...)
+    │   ├── artisans.py         # Artisan profiles
+    │   ├── clusters.py         # Artisan clusters
+    │   └── admin.py            # Admin dashboard analytics
+    └── utils/
+        ├── auth.py             # JWT helpers + require_auth decorator
+        ├── blockchain.py       # SHA-256 hash chain logic
+        └── helpers.py          # Response helpers, pagination, serialiser
+```
+
+---
+
+## Quick Start
+
+```bash
+# 1. Database
+mysql -u root -p < schema.sql
+
+# 2. Environment
+cp .env.example .env
+# Edit .env — set DB_PASSWORD and SECRET_KEY
+
+# 3. Install
+pip install -r requirements.txt
+
+# 4. Run
+python run.py
+# API available at http://localhost:5000
+```
+
+---
+
+## API Reference
+
+### Auth (No token required)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register user |
+| POST | `/api/auth/login` | Login → JWT token |
+| GET  | `/api/auth/me` | My profile (token required) |
+| POST | `/api/auth/change-password` | Change password |
+
+**Login response:**
+```json
+{ "token": "eyJ...", "role": "admin", "name": "Silasya Admin" }
+```
+Use `Authorization: Bearer <token>` on all protected routes.
+
+---
+
+### PUBLIC — Passport QR Scan (No auth)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/passport/:sgtin` | Full 7-layer DPP |
+| GET | `/api/passport/:sgtin?view=regulator` | + chain integrity + regulatory check |
+| GET | `/api/passport/:sgtin?view=brand` | + Scope 3 ESG data |
+| GET | `/api/passport/:sgtin/audit-file` | Regulator JSON download |
+| GET | `/api/passport/:sgtin/scan-count` | Scan analytics per product |
+
+---
+
+### Layer 1 — Product Identification
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products` | ✓ |
+| GET    | `/api/products?q=search` | ✓ |
+| POST   | `/api/products` | admin, brand_partner |
+| GET    | `/api/products/:id` | ✓ |
+| PUT    | `/api/products/:id` | admin, brand_partner |
+| DELETE | `/api/products/:id` | admin |
+| GET    | `/api/products/:id/summary` | ✓ — DPP layer completion % |
+
+**POST body:**
+```json
+{
+  "sgtin": "urn:epc:id:sgtin:0614141.107346.2017",
+  "batch_number": "BATCH-402",
+  "product_name": "Madhubani Handwoven Block Print Kurta",
+  "manufacturing_date": "2025-12-18",
+  "category": "Women Ethnic Wear",
+  "cluster_id": 1
+}
+```
+
+---
+
+### Layer 2 — Raw Material Traceability
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products/:id/materials` | public |
+| POST   | `/api/products/:id/materials` | admin, brand_partner |
+| PUT    | `/api/products/:id/materials/:mid` | admin, brand_partner |
+| DELETE | `/api/products/:id/materials/:mid` | admin, brand_partner |
+| GET    | `/api/products/:id/materials/gots-status` | public |
+
+**POST body:**
+```json
+{
+  "fiber_type": "Organic Cotton",
+  "fiber_origin": "Rain-fed Organic Cotton, Wardha District, Maharashtra",
+  "farm_name": "Satara Organic Farms",
+  "spinning_mill": "Nagpur Handspun Co-op",
+  "gots_cert_url": "https://...",
+  "gots_cert_number": "TC-2025-4821",
+  "rsl_compliant": true,
+  "percentage": 95
+}
+```
+
+---
+
+### Layer 3 — Manufacturing / Artisan Story
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products/:id/manufacturing` | public |
+| POST   | `/api/products/:id/manufacturing` | admin, brand_partner, artisan_manager |
+| PUT    | `/api/products/:id/manufacturing/:rid` | admin, brand_partner, artisan_manager |
+| DELETE | `/api/products/:id/manufacturing/:rid` | admin |
+| GET    | `/api/products/:id/manufacturing/fair-wage-summary` | public |
+
+**POST body:**
+```json
+{
+  "artisan_id": 1,
+  "cluster_id": 1,
+  "hours_worked": 22.5,
+  "production_date": "2025-12-01",
+  "social_audit_url": "https://...",
+  "social_audit_standard": "SA8000"
+}
+```
+
+---
+
+### Layer 4 — Environmental Impact
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products/:id/environmental` | public |
+| POST   | `/api/products/:id/environmental` | admin, brand_partner |
+| GET    | `/api/products/:id/environmental/compare` | public — carbon comparison |
+
+**POST body:**
+```json
+{
+  "carbon_footprint_co2e": 2.1,
+  "industry_avg_co2e": 18.0,
+  "water_saved_liters": 3200,
+  "lca_methodology": "ISO 14040/44 LCA Standard",
+  "assessment_date": "2025-11-01",
+  "assessment_body": "Eco-Verify India",
+  "report_url": "https://..."
+}
+```
+
+---
+
+### Layer 5 — Circularity & Recyclability
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products/:id/circularity` | public |
+| POST   | `/api/products/:id/circularity` | admin, brand_partner |
+
+**POST body:**
+```json
+{
+  "disassembly_instructions": "1. Remove corozo nut buttons before recycling. 2. Separate zipper at seam. 3. Cotton fabric is compostable.",
+  "component_breakdown": [
+    {"name": "buttons", "material": "corozo nut", "recyclable": true, "biodegradable": true},
+    {"name": "thread", "material": "cotton", "recyclable": true}
+  ],
+  "recyclability_score": 88,
+  "end_of_life_options": "Textile recycling, compost (natural fibres), Silasya take-back programme",
+  "takeback_program_url": "https://silasya.com/takeback"
+}
+```
+
+---
+
+### Layer 6 — Performance & Care
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products/:id/care` | public |
+| POST   | `/api/products/:id/care` | admin, brand_partner |
+
+**POST body:**
+```json
+{
+  "wash_instructions": "Cold wash 30°C · Wash less · Air dry · No tumble dry · Iron on low with cloth",
+  "durability_score": 85,
+  "estimated_life_years": 8.5,
+  "care_symbols": ["30C", "no_tumble_dry", "iron_low", "do_not_bleach"],
+  "repair_guidance": "Minor seam repairs extend life. Contact hello@silasya.earth for repair kits."
+}
+```
+
+---
+
+### Layer 7 — Blockchain Verification
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products/:id/blockchain` | public — full chain |
+| GET    | `/api/products/:id/blockchain/verify` | public — integrity check |
+| GET    | `/api/products/:id/blockchain/latest` | public — latest hash |
+| POST   | `/api/products/:id/blockchain/audit-entry` | admin only |
+
+---
+
+### Compliance Certificates
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/products/:id/certificates` | ✓ |
+| GET    | `/api/products/:id/certificates?jurisdiction=EU` | ✓ |
+| POST   | `/api/products/:id/certificates` | admin, brand_partner |
+| DELETE | `/api/products/:id/certificates/:cid` | admin, brand_partner |
+| GET    | `/api/products/:id/certificates/regulatory-check` | public |
+
+**POST body:**
+```json
+{
+  "cert_type": "GOTS",
+  "cert_number": "TC-2025-4821",
+  "issuing_body": "Control Union Certifications",
+  "issued_date": "2025-01-15",
+  "expiry_date": "2026-01-14",
+  "cert_url": "https://...",
+  "jurisdiction": "GLOBAL"
+}
+```
+
+**Supported cert_types:** `GOTS` `SA8000` `SMETA` `OEKO-TEX` `ESPR` `EU_GREEN_CLAIMS` `UFLPA` `US_CBP` `UK_GREEN_CLAIMS` `CMA` `RSL` `REACH` `BLUESIGN` `FAIR_TRADE` `BCI` `CUSTOM`
+
+---
+
+### Artisans & Clusters
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/artisans` | ✓ |
+| POST   | `/api/artisans` | admin, artisan_manager |
+| GET    | `/api/artisans/:id` | ✓ |
+| PUT    | `/api/artisans/:id` | admin, artisan_manager |
+| GET    | `/api/clusters` | public |
+| POST   | `/api/clusters` | admin, artisan_manager |
+| GET    | `/api/clusters/:id` | public |
+| PUT    | `/api/clusters/:id` | admin, artisan_manager |
+
+---
+
+### Admin Dashboard
+| Method | Endpoint | Auth |
+|--------|----------|------|
+| GET    | `/api/admin/stats` | admin |
+| GET    | `/api/admin/scans` | admin |
+| GET    | `/api/admin/top-scanned` | admin |
+| GET    | `/api/admin/compliance-gaps` | admin |
+| GET    | `/api/admin/environmental-summary` | admin |
+| GET    | `/api/admin/users` | admin |
+
+---
+
+## User Roles
+
+| Role | Access |
+|------|--------|
+| `admin` | Full access to everything |
+| `brand_partner` | Create/manage products, all layers, certificates |
+| `artisan_manager` | Manage artisans, clusters, manufacturing records |
+| `regulator` | Read-only access to all data |
+
+---
+
+## Regulatory Markets Covered
+
+| Market | Regulation | What we provide |
+|--------|-----------|-----------------|
+| 🇪🇺 EU | ESPR / DPP mandate + Green Claims Directive | Full 7-layer DPP, blockchain proof |
+| 🇺🇸 US | UFLPA (Uyghur Forced Labor Prevention Act) | Farm-level traceability, GOTS certs |
+| 🇬🇧 UK | Green Claims Code (CMA) | LCA-verified impact data, artisan wage proof |

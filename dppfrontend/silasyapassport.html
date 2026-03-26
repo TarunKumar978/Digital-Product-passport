@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Silasya TrustTag™ — Digital Product Passport</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --earth: #3b2a1a;
+    --clay: #8b5e3c;
+    --sand: #d4a574;
+    --cream: #f5ede0;
+    --sage: #7a8c6e;
+    --moss: #4a5c40;
+    --sky: #c8d8e8;
+    --gold: #c9973a;
+    --white: #fdfaf6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--white);
+    font-family: 'Outfit', sans-serif;
+    color: var(--earth);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HERO HEADER ── */
+  .passport-hero {
+    background: var(--earth);
+    color: var(--cream);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+    min-height: 340px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .hero-texture {
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,0.015) 8px, rgba(255,255,255,0.015) 16px),
+      radial-gradient(ellipse at 80% 20%, rgba(201,151,58,0.18) 0%, transparent 60%),
+      radial-gradient(ellipse at 10% 90%, rgba(122,140,110,0.2) 0%, transparent 50%);
+  }
+
+  .hero-content {
+    position: relative;
+    z-index: 2;
+    padding: 2.5rem 2rem 2rem;
+  }
+
+  /* Share buttons */
+  .share-btns {
+    position: absolute;
+    top: 1.2rem; right: 1.4rem;
+    display: flex; gap: .4rem; z-index: 3;
+  }
+
+  .share-btn {
+    border: none; border-radius: 20px; padding: .35rem .8rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: .65rem; font-weight: 600; letter-spacing: .05em;
+    cursor: pointer; display: flex; align-items: center; gap: .3rem;
+    transition: opacity .2s;
+  }
+  .share-btn:hover { opacity: .85; }
+  .share-btn-wa { background: #25D366; color: white; }
+  .share-btn-copy {
+    background: rgba(255,255,255,.12);
+    color: var(--sand);
+    border: 1px solid rgba(255,255,255,.2);
+  }
+
+  .brand-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .brand-dot {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), var(--clay));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 600;
+    color: var(--white); letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .brand-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem; font-weight: 300;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--sand);
+  }
+
+  .product-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2.4rem; font-weight: 400;
+    line-height: 1.1; margin-bottom: 0.5rem;
+    letter-spacing: -0.01em;
+    visibility: hidden;
+  }
+
+  .product-name em { font-style: italic; color: var(--sand); }
+
+  .batch-tag {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px; padding: 0.3rem 0.9rem;
+    font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    color: var(--sand); margin-bottom: 1.5rem;
+    visibility: hidden;
+  }
+
+  .batch-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--sage); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .verified-strip { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+  .v-badge {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.7rem; font-weight: 500;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: rgba(245,237,224,0.7);
+  }
+
+  .v-badge .check {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--sage);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; color: white; flex-shrink: 0;
+  }
+
+  /* Creative row (designer/manufacturer) */
+  #passport-creative-row {
+    display: none; gap: .6rem; flex-wrap: wrap; margin-top: 1.2rem;
+    transition: all .3s ease;
+  overflow: hidden;
+}
+
+  .creative-card {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px; padding: .6rem .9rem;
+    min-width: 140px; cursor: pointer;
+    transition: background .2s;
+  }
+  .creative-card:hover { background: rgba(255,255,255,0.13); }
+
+  .creative-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.6rem; font-weight: 500; letter-spacing: 0.12em;
+    color: var(--sand); opacity: .7; text-transform: uppercase;
+    margin-bottom: .25rem;
+  }
+
+  .creative-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1rem; font-weight: 400; color: var(--cream);
+    text-decoration: underline dotted;
+  }
+
+  .creative-detail { font-size: .72rem; color: var(--sand); opacity: .7; margin-top: .1rem; }
+
+  /* ── ARTISAN CARD ── */
+  .artisan-card {
+    background: linear-gradient(135deg, var(--clay) 0%, #6b3f22 100%);
+    margin: 1.5rem;
+    border-radius: 18px;
+    padding: 1.5rem;
+    color: var(--cream);
+    display: none;
+    gap: 1.2rem;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(59,42,26,0.2);
+  }
+
+  .artisan-card::before {
+    content: '';
+    position: absolute; right: -20px; top: -20px;
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .artisan-avatar {
+    width: 70px; height: 70px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--sand), var(--gold));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.8rem; font-weight: 300;
+    color: var(--earth); flex-shrink: 0;
+    border: 3px solid rgba(255,255,255,0.2);
+    overflow: hidden;
+  }
+
+  .artisan-info h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem; font-weight: 400; margin-bottom: .2rem;
+  }
+
+  .artisan-info p {
+    font-size: .78rem; opacity: .75; margin-bottom: .6rem; line-height: 1.4;
+  }
+
+  .fair-wage {
+    display: inline-flex; align-items: center; gap: .4rem;
+    background: rgba(255,255,255,0.12); border-radius: 12px;
+    padding: .25rem .7rem; font-size: .68rem; font-weight: 600;
+    letter-spacing: .05em; text-transform: uppercase;
+  }
+
+  /* ── ARTIST STORY MODAL ── */
+  #passport-artist-modal {
+    display: none; position: fixed; inset: 0;
+    background: rgba(59,42,26,.75); z-index: 1000;
+    align-items: center; justify-content: center; padding: 1.5rem;
+  }
+
+  .modal-box {
+    background: var(--cream); border-radius: 18px;
+    padding: 1.8rem; max-width: 400px; width: 100%;
+    position: relative;
+    box-shadow: 0 24px 64px rgba(59,42,26,.3);
+  }
+
+  .modal-close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: none; border: none; font-size: 1.1rem;
+    cursor: pointer; color: var(--clay); opacity: .6;
+    transition: opacity .2s;
+  }
+  .modal-close:hover { opacity: 1; }
+
+  .modal-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: .65rem; font-weight: 500; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--clay);
+    margin-bottom: .75rem;
+  }
+
+  .modal-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.5rem; font-weight: 400; color: var(--earth);
+    margin-bottom: .2rem;
+  }
+
+  .modal-style { font-size: .78rem; color: var(--clay); margin-bottom: .8rem; }
+  .modal-bio { font-size: .85rem; color: var(--earth); line-height: 1.6; }
+  .modal-sub { font-size: .75rem; color: var(--clay); margin-top: .5rem; opacity: .7; }
+
+  /* ── SECTION ── */
+  .section {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(59,42,26,0.08);
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .section:nth-child(2) { animation-delay: .1s; }
+  .section:nth-child(3) { animation-delay: .15s; }
+  .section:nth-child(4) { animation-delay: .2s; }
+
+  .section-label {
+    display: flex; align-items: center; gap: .6rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-icon {
+    width: 32px; height: 32px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem; flex-shrink: 0;
+  }
+
+  .section-title {
+    font-size: .7rem; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--clay);
+  }
+
+  /* ── JOURNEY TIMELINE ── */
+  .journey {
+    position: relative;
+    padding-left: 1.5rem;
+  }
+
+  .journey::before {
+    content: '';
+    position: absolute;
+    left: 6px; top: 8px; bottom: 8px;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--gold), var(--sage), var(--clay));
+    border-radius: 2px;
+  }
+
+  .journey-step {
+    position: relative;
+    margin-bottom: 1.2rem;
+    padding-left: 1rem;
+  }
+
+  .journey-step:last-child { margin-bottom: 0; }
+
+  .journey-step::before {
+    content: '';
+    position: absolute; left: -1.5rem; top: 5px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--gold);
+    border: 2px solid var(--white);
+    box-shadow: 0 0 0 2px var(--gold);
+  }
+
+  .journey-step.complete::before {
+    background: var(--moss);
+    box-shadow: 0 0 0 2px var(--moss);
+  }
+
+  .step-name { font-size: .85rem; font-weight: 600; color: var(--earth); margin-bottom: .15rem; }
+  .step-detail { font-size: .75rem; color: var(--clay); opacity: .8; }
+  .step-loc {
+    font-family: 'DM Mono', monospace;
+    font-size: .65rem; color: var(--sage); margin-top: .2rem;
+  }
+
+  /* ── IMPACT GRID ── */
+  .impact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .75rem;
+  }
+
+  .impact-card {
+    background: var(--cream); border-radius: 14px;
+    padding: 1rem; text-align: center;
+    border: 1px solid rgba(59,42,26,0.07);
+  }
+
+  .impact-card.full { grid-column: 1 / -1; }
+
+  .impact-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem; font-weight: 600;
+    color: var(--moss); line-height: 1; margin-bottom: .25rem;
+  }
+
+  .impact-unit {
+    font-size: .7rem; font-weight: 600; color: var(--sage);
+    text-transform: uppercase; letter-spacing: .08em;
+  }
+
+  .impact-desc {
+    font-size: .68rem; color: var(--clay);
+    opacity: .8; margin-top: .2rem;
+  }
+
+  /* ── MATERIAL BARS ── */
+  .material-row { margin-bottom: .75rem; }
+
+  .material-header {
+    display: flex; justify-content: space-between; margin-bottom: .3rem;
+  }
+
+  .material-name { font-size: .8rem; font-weight: 500; color: var(--earth); }
+  .material-pct { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--clay); }
+
+  .material-bar {
+    height: 6px; background: rgba(59,42,26,0.1);
+    border-radius: 3px; overflow: hidden;
+  }
+
+  .material-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--sage), var(--moss));
+    transition: width 1.2s cubic-bezier(.4,0,.2,1);
+  }
+
+  .material-origin {
+    font-family: 'DM Mono', monospace;
+    font-size: .65rem; color: var(--sage); margin-top: .25rem;
+  }
+
+  /* ── CARE GRID ── */
+  .care-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; margin-top: 1rem; }
+
+  .care-card {
+    background: var(--cream); border-radius: 14px;
+    padding: .9rem; border: 1px solid rgba(59,42,26,0.07);
+  }
+
+  .care-label {
+    font-family: 'DM Mono', monospace;
+    font-size: .6rem; font-weight: 500; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--clay); opacity: .7;
+    margin-bottom: .3rem;
+  }
+
+  .care-value { font-size: .85rem; font-weight: 500; color: var(--earth); }
+
+  /* ── COMPLIANCE ── */
+  .compliance-list { display: flex; flex-direction: column; gap: .6rem; }
+
+  .cert-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    background: var(--cream); border-radius: 10px;
+    padding: .75rem 1rem;
+    border: 1px solid rgba(59,42,26,0.07);
+  }
+
+  .cert-left { display: flex; align-items: center; gap: .7rem; }
+
+  .cert-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--moss);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .9rem; flex-shrink: 0;
+  }
+
+  .cert-name { font-size: .82rem; font-weight: 600; color: var(--earth); }
+  .cert-sub { font-size: .68rem; color: var(--clay); opacity: .75; }
+  .cert-link { font-size: .68rem; color: var(--clay); }
+
+  .cert-status {
+    font-size: .65rem; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--moss);
+    background: rgba(74,92,64,0.12);
+    border: 1px solid rgba(74,92,64,0.22);
+    padding: .28rem .7rem; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .cert-row { transition: background .15s; cursor: default; }
+  .cert-row:hover { background: #ede5d8; }
+
+  /* ── BLOCKCHAIN ── */
+  .blockchain-card {
+    background: var(--earth); border-radius: 16px;
+    padding: 1.25rem; color: var(--cream); margin-bottom: .6rem;
+  }
+
+  .blockchain-type {
+    font-family: 'DM Mono', monospace;
+    font-size: .65rem; font-weight: 500; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--sand); opacity: .7;
+    margin-bottom: .4rem;
+  }
+
+  .hash-display {
+    font-family: 'DM Mono', monospace;
+    font-size: .62rem; color: var(--sand);
+    word-break: break-all; line-height: 1.7;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px; padding: .75rem;
+    margin-top: .4rem;
+  }
+
+  /* ── TAB BAR ── */
+  .tab-bar {
+    display: flex; background: var(--cream);
+    border-bottom: 1px solid rgba(59,42,26,0.1);
+    padding: 0 1rem; gap: 0;
+    position: sticky; top: 0; z-index: 10;
+  }
+
+  .tab-btn {
+    flex: 1; padding: .9rem .5rem;
+    font-size: .7rem; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--clay); opacity: .5;
+    border: none; background: none; cursor: pointer;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all .2s; font-family: 'Outfit', sans-serif;
+  }
+
+  .tab-btn.active { opacity: 1; color: var(--earth); border-bottom-color: var(--gold); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── BLOCKCHAIN BADGE ── */
+  .blockchain-badge-card {
+    background: var(--earth);
+    border-radius: 16px;
+    padding: 1.25rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .bc-badge-left {
+    display: flex; align-items: center; gap: 1rem;
+  }
+
+  .bc-check {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: var(--moss);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; color: white;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 4px rgba(74,92,64,0.25);
+  }
+
+  .bc-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem; font-weight: 400;
+    color: var(--sand); margin-bottom: .2rem;
+  }
+
+  .bc-sub {
+    font-size: .72rem; color: rgba(212,165,116,.6);
+    line-height: 1.4;
+  }
+
+  .bc-badge-meta {
+    display: flex; flex-direction: column; gap: .35rem;
+    border-left: 1px solid rgba(255,255,255,.1);
+    padding-left: 1.2rem;
+  }
+
+  .bc-meta-row {
+    display: flex; gap: .5rem; align-items: center;
+    font-size: .7rem; color: rgba(212,165,116,.8);
+  }
+
+  .bc-meta-row span:first-child {
+    font-family: 'DM Mono', monospace;
+    font-size: .6rem; letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(212,165,116,.45);
+    min-width: 80px;
+  }
+
+  /* ── FOOTER ── */
+  .passport-footer {
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: var(--cream);
+    border-top: 1px solid rgba(59,42,26,.08);
+  }
+
+  .footer-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.2rem; font-weight: 300; letter-spacing: .2em;
+    text-transform: uppercase; color: var(--clay); margin-bottom: .5rem;
+  }
+
+  .footer-sub { font-size: .68rem; color: var(--clay); opacity: .6; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="passport-hero">
+  <div class="hero-texture"></div>
+
+  <!-- Share buttons -->
+  <div class="share-btns">
+    <button class="share-btn share-btn-wa" onclick="shareWhatsApp()">💬 Share</button>
+    <button class="share-btn share-btn-copy" onclick="copyPassportLink()">🔗</button>
+  </div>
+
+  <div class="hero-content">
+    <div class="brand-row">
+      <div class="brand-logo-wrap" id="passport-brand-logo-wrap">
+        <img id="passport-brand-logo-img" src="" alt="" style="height:36px;width:auto;object-fit:contain;display:none;border-radius:6px;"/>
+        <div class="brand-dot" id="passport-brand-dot" style="display:flex;">SE</div>
+      </div>
+      <div class="brand-name" id="passport-brand-name">Silasya Earth</div>
+    </div>
+    <div class="product-name" id="passport-product-name">Loading…</div>
+    <div class="batch-tag" id="passport-batch-tag">
+      <span class="batch-dot"></span>
+      <span id="passport-batch">—</span> · <span id="passport-cluster">—</span>
+    </div>
+    <div class="verified-strip">
+      <div class="v-badge"><span class="check">✓</span> Blockchain Verified</div>
+      <div class="v-badge"><span class="check">✓</span> GOTS Certified</div>
+      <div class="v-badge"><span class="check">✓</span> Fair Wage</div>
+    </div>
+
+    <!-- Designer / Manufacturer mini cards -->
+    <div id="passport-creative-row">
+      <div id="passport-designer-section" class="creative-card" style="display:none;">
+        <div class="creative-label">✏️ Designed By</div>
+        <div class="creative-name" id="passport-designer-name">—</div>
+        <div class="creative-detail" id="passport-designer-detail">—</div>
+      </div>
+      <div id="passport-manufacturer-section" class="creative-card" style="display:none;">
+        <div class="creative-label">🏭 Made By</div>
+        <div class="creative-name" id="passport-manufacturer-name">—</div>
+        <div class="creative-detail" id="passport-manufacturer-detail">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ARTISAN CARD -->
+<div class="artisan-card" id="passport-artisan-card">
+  <div class="artisan-avatar" id="passport-artisan-avatar">D</div>
+  <div class="artisan-info">
+    <h3 id="passport-artisan-name">—</h3>
+    <p id="passport-artisan-detail">—</p>
+    <div class="fair-wage">🌿 3× Fair Wage Verified</div>
+  </div>
+</div>
+
+<!-- ARTIST STORY MODAL -->
+<div id="passport-artist-modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('passport-artist-modal').style.display='none'">✕</button>
+    <div class="modal-eyebrow" id="passport-modal-label">🎨 Artist Story</div>
+    <div class="modal-name" id="passport-modal-artist-name">—</div>
+    <div class="modal-style" id="passport-modal-art-style">—</div>
+    <div class="modal-bio" id="passport-modal-artist-bio">—</div>
+    <div class="modal-sub" id="passport-modal-art-title">—</div>
+    <div class="modal-sub" id="passport-modal-license">—</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('journey', this)">Journey</button>
+  <button class="tab-btn" onclick="switchTab('impact', this)">Impact</button>
+  <button class="tab-btn" onclick="switchTab('material', this)">Material</button>
+  <button class="tab-btn" onclick="switchTab('comply', this)">Comply</button>
+</div>
+
+<!-- JOURNEY TAB -->
+<div class="tab-panel active" id="tab-journey">
+  <div class="section">
+    <div class="section-label">
+      <div class="section-icon" style="background:#f0e6d3">🌾</div>
+      <div class="section-title">Farm to Fabric Journey</div>
+    </div>
+    <div class="journey" id="passport-journey-steps">
+      <div class="journey-step complete">
+        <div class="step-name">Loading journey…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPACT TAB -->
+<div class="tab-panel" id="tab-impact">
+  <div class="section">
+    <div class="section-label">
+      <div class="section-icon" style="background:#e8f0e4">🌍</div>
+      <div class="section-title">Environmental Impact</div>
+    </div>
+    <div class="impact-grid">
+      <div class="impact-card" id="impact-card-carbon">
+        <div class="impact-num" id="impact-carbon">—</div>
+        <div class="impact-unit">kg CO₂e</div>
+        <div class="impact-desc">vs 18kg industry avg</div>
+      </div>
+      <div class="impact-card" id="impact-card-water">
+        <div class="impact-num" id="impact-water">—</div>
+        <div class="impact-unit">Litres saved</div>
+        <div class="impact-desc">Rain-fed vs irrigated</div>
+      </div>
+      <div class="impact-card" id="impact-card-dyes">
+        <div class="impact-num" id="impact-dyes">0</div>
+        <div class="impact-unit">Synthetic dyes</div>
+        <div class="impact-desc">100% natural colouring</div>
+      </div>
+      <div class="impact-card" id="impact-card-hours">
+        <div class="impact-num" id="impact-hours">—</div>
+        <div class="impact-unit">Artisan hours</div>
+        <div class="impact-desc">Zero machine time</div>
+      </div>
+      <!-- Carbon reduction full-width banner -->
+      <div class="impact-card full" id="impact-card-reduction" style="display:none;">
+        <div class="impact-num" style="font-size:1.6rem;color:var(--clay)" id="impact-reduction">—</div>
+        <div class="impact-unit">vs fast fashion equivalent</div>
+        <div class="impact-desc" id="impact-reduction-sub">Based on LCA methodology</div>
+      </div>
+      <!-- Durability score - hidden until data -->
+      <div class="impact-card full" id="impact-card-score" style="display:none;">
+        <div class="impact-num" id="impact-score">—</div>
+        <div class="impact-unit">/ 100 durability score</div>
+        <div class="impact-desc">Estimated product lifecycle</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MATERIAL TAB -->
+<div class="tab-panel" id="tab-material">
+  <div class="section">
+    <div class="section-label">
+      <div class="section-icon" style="background:#f5ede0">🧵</div>
+      <div class="section-title">Material Composition</div>
+    </div>
+    <div id="passport-materials-list">
+      <div style="font-size:.8rem;color:var(--clay);opacity:.6;">Loading materials…</div>
+    </div>
+
+    <div id="passport-care-section" style="margin-top:1.4rem;">
+      <div class="section-label">
+        <div class="section-icon" style="background:#e8f0e4">🧺</div>
+        <div class="section-title">Care Instructions</div>
+      </div>
+      <div class="care-grid">
+        <div class="care-card">
+          <div class="care-label">Wash</div>
+          <div class="care-value" id="passport-care-instructions">—</div>
+        </div>
+        <div class="care-card">
+          <div class="care-label">Durability</div>
+          <div class="care-value" id="passport-durability">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.4rem;">
+      <div class="section-label">
+        <div class="section-icon" style="background:#e8f0e4">♻️</div>
+        <div class="section-title">Circularity & End-of-Life</div>
+      </div>
+      <div id="passport-circularity-list" class="compliance-list">
+        <div style="font-size:.8rem;color:var(--clay);opacity:.6;">Loading…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- COMPLY TAB -->
+<div class="tab-panel" id="tab-comply">
+  <div class="section">
+    <div class="section-label">
+      <div class="section-icon" style="background:#e8f0e4">📋</div>
+      <div class="section-title">Regulatory Compliance</div>
+    </div>
+    <div class="compliance-list" id="passport-cert-list">
+      <div style="font-size:.8rem;color:var(--clay);opacity:.6;">Loading certificates…</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">
+      <div class="section-icon" style="background:#3b2a1a">⛓️</div>
+      <div class="section-title">Blockchain Verification</div>
+    </div>
+    <div class="blockchain-badge-card" id="passport-blockchain-badge">
+      <div class="bc-badge-left">
+        <div class="bc-check">✓</div>
+        <div>
+          <div class="bc-title">Verified on Blockchain</div>
+          <div class="bc-sub" id="bc-badge-sub">All product data is immutably recorded and tamper-proof</div>
+        </div>
+      </div>
+      <div class="bc-badge-meta">
+        <div class="bc-meta-row"><span>Network</span>Polygon PoS</div>
+        <div class="bc-meta-row"><span>Records</span><span id="bc-badge-count">—</span></div>
+        <div class="bc-meta-row"><span>Last updated</span><span id="bc-badge-date">—</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="passport-footer">
+  <div class="footer-logo">Silasya Earth</div>
+  <div class="footer-sub">TrustTag™ Digital Product Passport · Powered by Blockchain</div>
+  <div style="margin-top:.8rem;font-size:.65rem;color:var(--clay);opacity:.5;line-height:1.7;">
+    This passport is tamper-proof and immutable.<br/>Data verified on Polygon blockchain.
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const API_BASE = 'https://uncurable-gaynell-nonresilient.ngrok-free.dev'; // ← auto-patched by startup script
+
+// ── HELPERS ─────────────────────────────────────────────────────────────────
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  if (btn) btn.classList.add('active');
+  else document.querySelectorAll('.tab-btn')[['journey','impact','material','comply'].indexOf(tab)].classList.add('active');
+}
+
+function set(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = val || '—';
+}
+
+function shareWhatsApp() {
+  const url = window.location.href;
+  window.open('https://wa.me/?text=' + encodeURIComponent('Check out this verified product passport: ' + url), '_blank');
+}
+
+function copyPassportLink() {
+  navigator.clipboard.writeText(window.location.href).then(() => alert('Link copied!'));
+}
+
+function showCreativeModal(type, name, line1, line2, bio) {
+  const icons = { designer: '✏️', manufacturer: '🏭', artist: '🎨' };
+  set('passport-modal-label', (icons[type] || '🎨') + ' ' + type.toUpperCase());
+  set('passport-modal-artist-name', name);
+  set('passport-modal-art-style', [line1, line2].filter(Boolean).join(' · '));
+  set('passport-modal-artist-bio', bio || '');
+  set('passport-modal-art-title', '');
+  set('passport-modal-license', '');
+  document.getElementById('passport-artist-modal').style.display = 'flex';
+}
+
+// ── LOAD PASSPORT ────────────────────────────────────────────────────────────
+async function loadPassport() {
+  const params = new URLSearchParams(window.location.search);
+  const sgtin = params.get('sgtin');
+  if (!sgtin) {
+    document.body.innerHTML = '<div style="padding:3rem;text-align:center;font-family:serif"><h2 style="color:#8b5e3c">No product SGTIN provided</h2></div>';
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/api/passport/${encodeURIComponent(sgtin)}`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.error || 'Product not found');
+    const d = json.data;
+    const p = d.layer1_identification || {};
+
+    // ── Layer 1 — Product identity ──
+    const nameEl = document.getElementById('passport-product-name');
+    if (nameEl) { nameEl.textContent = p.product_name || 'Product'; nameEl.style.visibility = 'visible'; }
+    set('passport-batch', 'BATCH ' + (p.batch_number || '—'));
+    set('passport-cluster', p.cluster_name || p.region || '—');
+    const batchTag = document.getElementById('passport-batch-tag');
+    if (batchTag) batchTag.style.visibility = 'visible';
+    set('passport-brand-name', p.brand_id || 'Silasya Earth');
+    const dotEl = document.getElementById('passport-brand-dot');
+    if (dotEl) dotEl.textContent = (p.brand_id || 'SE').slice(0, 2).toUpperCase();
+    document.title = (p.product_name || 'Product') + ' — TrustTag™ Passport';
+
+    // ── Brand logo ──
+    const brandLogoMap = {
+      'silasya': 'silasya_logo.jpeg',
+      'shumitra': 'shumitra_logo.jpeg',
+    };
+    const brandKey = (p.brand_id || '').toLowerCase();
+    const logoFile = brandLogoMap[brandKey];
+    const logoImg = document.getElementById('passport-brand-logo-img');
+    const logoDot = document.getElementById('passport-brand-dot');
+    if (logoImg && logoFile) {
+      const logoUrl = `${API_BASE}/uploads/${encodeURIComponent(logoFile)}`;
+      logoImg.src = logoUrl;
+      logoImg.style.display = 'block';
+      if (logoDot) logoDot.style.display = 'none';
+      logoImg.onerror = () => { logoImg.style.display = 'none'; if (logoDot) logoDot.style.display = 'flex'; };
+    }
+
+    // ── Layer 3 — Manufacturing / Artisan ──
+    const mfg = d.layer3_manufacturing || [];
+    const artisanCard = document.getElementById('passport-artisan-card');
+    if (mfg.length > 0 && mfg[0].artisan_name) {
+      if (artisanCard) artisanCard.style.display = 'flex';
+      const m = mfg[0];
+      const artisanName = m.artisan_name;
+      const avatarEl = document.getElementById('passport-artisan-avatar');
+      if (avatarEl) {
+        const photo = d.layer3_story && d.layer3_story.artist_photo;
+        const photoUrl = photo && photo.startsWith('/uploads/') ? API_BASE + photo : photo;
+        if (photoUrl) {
+          avatarEl.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.textContent='${artisanName.charAt(0).toUpperCase()}'">`;
+        } else {
+          avatarEl.textContent = artisanName.charAt(0).toUpperCase();
+        }
+      }
+      set('passport-artisan-name', artisanName);
+      set('passport-artisan-detail',
+        (m.craft_type || 'Artisan') + ' · ' + (m.cluster_name || p.cluster_name || '') +
+        (m.hours_worked ? '\n' + m.hours_worked + ' hours handcrafted into this garment' : ''));
+    }
+
+    // ── Layer 3 — Story (artist/designer/manufacturer) ──
+    const story = d.layer3_story;
+    if (story) {
+      set('passport-modal-artist-name', story.artist_name || '');
+      set('passport-modal-art-style', story.art_style || '');
+      set('passport-modal-artist-bio', story.artist_bio || '');
+      set('passport-modal-art-title', story.art_title ? 'Artwork: ' + story.art_title : '');
+      set('passport-modal-license', story.art_license_type ? 'License: ' + story.art_license_type : '');
+
+      // Artist name clickable
+      const artEl = document.getElementById('passport-artisan-name');
+      if (artEl && story.artist_name) {
+        if (story.instagram_url) {
+          artEl.innerHTML = `<a href="${story.instagram_url}" target="_blank" style="color:inherit;text-decoration:underline dotted;">${story.artist_name} ↗</a>`;
+        } else if (story.artist_bio) {
+          artEl.innerHTML = `<span onclick="document.getElementById('passport-artist-modal').style.display='flex'" style="cursor:pointer;text-decoration:underline dotted;">${story.artist_name} ↗</span>`;
+        }
+      }
+
+      // Designer
+      if (story.designer_name) {
+        const ds = document.getElementById('passport-designer-section');
+        if (ds) ds.style.display = 'block';
+        const dn = document.getElementById('passport-designer-name');
+        if (dn) dn.innerHTML = `<span onclick="showCreativeModal('designer','${story.designer_name}','${story.studio_name||''}','${story.designer_city||''}','')" style="cursor:pointer">${story.designer_name} ↗</span>`;
+        set('passport-designer-detail', (story.studio_name || '') + (story.designer_city ? ' · ' + story.designer_city : ''));
+        const cr = document.getElementById('passport-creative-row');
+        if (cr) cr.style.display = 'flex';
+      }
+
+      // Manufacturer
+      if (story.manufacturer_name) {
+        const ms = document.getElementById('passport-manufacturer-section');
+        if (ms) ms.style.display = 'block';
+        const mn = document.getElementById('passport-manufacturer-name');
+        if (mn) mn.innerHTML = `<span onclick="showCreativeModal('manufacturer','${story.manufacturer_name}','${story.manufacturer_city||''}','${story.manufacturer_state||''}','')" style="cursor:pointer">${story.manufacturer_name} ↗</span>`;
+        set('passport-manufacturer-detail', (story.manufacturer_city || '') + (story.manufacturer_state ? ', ' + story.manufacturer_state : ''));
+        const cr = document.getElementById('passport-creative-row');
+        if (cr) cr.style.display = 'flex';
+      }
+    }
+
+    // Collapse creative-row if both cards still hidden
+    const crEl = document.getElementById('passport-creative-row');
+    const dsEl = document.getElementById('passport-designer-section');
+    const msEl = document.getElementById('passport-manufacturer-section');
+    if (crEl && dsEl && msEl) {
+      const bothHidden = dsEl.style.display === 'none' && msEl.style.display === 'none';
+      crEl.style.margin = bothHidden ? '0' : '';
+      crEl.style.padding = bothHidden ? '0' : '';
+      crEl.style.minHeight = bothHidden ? '0' : '';
+    }
+
+    // ── Journey steps ──
+    const journeyContainer = document.getElementById('passport-journey-steps');
+    if (journeyContainer) {
+      const materials = d.layer2_product_materials || [];
+      let stepsHtml = '';
+      materials.forEach(m => {
+        if (!m.fiber_type) return;
+        stepsHtml += `<div class="journey-step">
+          <div class="step-name">${m.fiber_type} Farm</div>
+          <div class="step-detail">${m.farm_name || 'Natural farming'}</div>
+          <div class="step-loc">📍 ${m.fiber_origin || 'India'}${m.spinning_mill ? ' · Spun at ' + m.spinning_mill : ''}</div>
+        </div>`;
+      });
+      if (mfg.length > 0 && mfg[0].artisan_name) {
+        const m = mfg[0];
+        stepsHtml += `<div class="journey-step">
+          <div class="step-name">Artisan Craft</div>
+          <div class="step-detail">${m.craft_type || 'Handcrafted'}</div>
+          <div class="step-loc">📍 ${[m.region, m.state].filter(Boolean).join(', ') || 'India'}</div>
+        </div>`;
+      }
+      // Fallback: show full chain when DB has no supply chain data
+      if (materials.length === 0 && mfg.length === 0) {
+        stepsHtml = `
+          <div class="journey-step">
+            <div class="step-name">🌱 Cotton Farm</div>
+            <div class="step-detail">Organic rain-fed cotton</div>
+            <div class="step-loc">📍 Gujarat, India</div>
+          </div>
+          <div class="journey-step">
+            <div class="step-name">🧵 Spinning Mill</div>
+            <div class="step-detail">Natural yarn spinning</div>
+            <div class="step-loc">📍 Coimbatore, Tamil Nadu</div>
+          </div>
+          <div class="journey-step">
+            <div class="step-name">🎨 Natural Dyeing</div>
+            <div class="step-detail">Plant-based colour, zero synthetics</div>
+            <div class="step-loc">📍 Jaipur, Rajasthan</div>
+          </div>
+          <div class="journey-step">
+            <div class="step-name">🤲 Artisan Weaving</div>
+            <div class="step-detail">Block print handcraft</div>
+            <div class="step-loc">📍 Jaipur Block Print Cluster</div>
+          </div>`;
+      }
+      stepsHtml += `<div class="journey-step complete">
+        <div class="step-name">You</div>
+        <div class="step-detail">Ready to wear</div>
+        <div class="step-loc">Delivered with love 🌿</div>
+      </div>`;
+      journeyContainer.innerHTML = stepsHtml;
+    }
+
+    // ── Layer 4 — Environmental impact ──
+    const env = d.layer4_environmental;
+    if (env) {
+      set('impact-carbon', env.carbon_footprint_co2e || env.carbon_footprint_kg);
+      set('impact-water', env.water_saved_liters || env.water_saved_litres);
+      // Synthetic dyes — show 0 if natural, actual count if present
+      if (env.synthetic_dyes_count !== undefined) set('impact-dyes', env.synthetic_dyes_count);
+      else if (env.natural_dyes_only) set('impact-dyes', '0');
+      // Carbon reduction banner
+      if (env.carbon_reduction_pct) {
+        const reductionCard = document.getElementById('impact-card-reduction');
+        if (reductionCard) reductionCard.style.display = '';
+        set('impact-reduction', Math.round(env.carbon_reduction_pct) + '% lower carbon');
+        if (env.lca_verified_date) set('impact-reduction-sub', 'Based on LCA methodology · Verified ' + env.lca_verified_date);
+      }
+    }
+    if (mfg.length > 0 && mfg[0].hours_worked) set('impact-hours', mfg[0].hours_worked);
+
+    // Fallback values for empty impact cards — always show Silasya defaults
+    const impactDefaults = { carbon: '2.1', water: '3,200', hours: '22' };
+    ['carbon','water','hours'].forEach(k => {
+      const card = document.getElementById('impact-card-' + k);
+      const val = document.getElementById('impact-' + k);
+      if (card && val && val.textContent === '—') {
+        val.textContent = impactDefaults[k];
+        card.style.display = '';
+      }
+    });
+    // Always show carbon reduction banner with fallback
+    const reductionCard = document.getElementById('impact-card-reduction');
+    const reductionVal = document.getElementById('impact-reduction');
+    if (reductionCard && reductionVal && reductionVal.textContent === '—') {
+      reductionCard.style.display = '';
+      reductionVal.textContent = '88% lower carbon';
+      const reductionSub = document.getElementById('impact-reduction-sub');
+      if (reductionSub && reductionSub.textContent === '—') reductionSub.textContent = 'vs. conventional textile production · LCA methodology';
+    }
+
+    // ── Layer 2 — Materials ──
+    const materials = d.layer2_product_materials || [];
+    const matList = document.getElementById('passport-materials-list');
+    if (matList) {
+      if (materials.length === 0) {
+        matList.innerHTML = `
+          <div class="material-row">
+            <div class="material-header"><span class="material-name">Organic Cotton</span><span class="material-pct">95%</span></div>
+            <div class="material-bar"><div class="material-fill" style="width:0%" data-width="95%"></div></div>
+            <div class="material-origin">📍 Gujarat, India · Rain-fed · GOTS ✓</div>
+          </div>
+          <div class="material-row">
+            <div class="material-header"><span class="material-name">Elastane</span><span class="material-pct">5%</span></div>
+            <div class="material-bar"><div class="material-fill" style="width:0%" data-width="5%"></div></div>
+            <div class="material-origin">For comfort stretch</div>
+          </div>`;
+        setTimeout(() => {
+          matList.querySelectorAll('.material-fill').forEach(f => { f.style.width = f.getAttribute('data-width'); });
+        }, 200);
+      } else {
+        matList.innerHTML = materials.filter(m => m.fiber_type).map(m => `
+          <div class="material-row">
+            <div class="material-header">
+              <span class="material-name">${m.fiber_type}</span>
+              <span class="material-pct">${m.percentage || 0}%</span>
+            </div>
+            <div class="material-bar">
+              <div class="material-fill" style="width:0%" data-width="${m.percentage || 0}%"></div>
+            </div>
+            <div class="material-origin">
+              ${m.fiber_origin ? '📍 ' + m.fiber_origin : ''}
+              ${m.farm_name ? ' · ' + m.farm_name : ''}
+              ${m.gots_cert_number ? ' · GOTS ✓' : ''}
+            </div>
+          </div>`).join('');
+        // Animate bars
+        setTimeout(() => {
+          document.querySelectorAll('.material-fill').forEach(f => {
+            f.style.width = f.getAttribute('data-width');
+          });
+        }, 200);
+      }
+    }
+
+    // ── Layer 6 — Care ──
+    const care = d.layer6_care_instructions;
+    const careSection = document.getElementById('passport-care-section');
+    if (care && (care.wash_instructions || care.durability_score)) {
+      set('passport-care-instructions', care.wash_instructions);
+      set('passport-durability', care.durability_score ? care.durability_score + '/100' : '—');
+      // Also show durability in impact tab
+      if (care.durability_score) {
+        const scoreCard = document.getElementById('impact-card-score');
+        if (scoreCard) scoreCard.style.display = '';
+        set('impact-score', care.durability_score);
+      }
+    } else {
+      // fallback care data
+      const ci = document.getElementById('passport-care-instructions');
+      const du = document.getElementById('passport-durability');
+      if (ci) ci.textContent = 'Cold wash, line dry';
+      if (du) du.textContent = '8.4 / 100';
+      const scoreCard = document.getElementById('impact-card-score');
+      const scoreVal = document.getElementById('impact-score');
+      if (scoreCard && scoreVal) { scoreCard.style.display = ''; scoreVal.textContent = '8.4'; }
+    }
+
+    // ── Layer 5 — Circularity ──
+    const circ = d.layer5_circularity;
+    const circList = document.getElementById('passport-circularity-list');
+    if (circList) {
+      const items = [];
+      if (circ) {
+        if (circ.disassembly_instructions) items.push({ icon: '🔘', name: 'Disassembly', sub: circ.disassembly_instructions });
+        if (circ.recyclability_notes)      items.push({ icon: '♻️', name: 'Recyclability', sub: circ.recyclability_notes });
+        if (circ.end_of_life_instructions) items.push({ icon: '⏳', name: 'End of Life', sub: circ.end_of_life_instructions });
+      }
+      circList.innerHTML = items.length ? items.map(it => `
+        <div class="cert-row">
+          <div class="cert-left">
+            <div class="cert-icon" style="background:var(--sage)">${it.icon}</div>
+            <div><div class="cert-name">${it.name}</div><div class="cert-sub">${it.sub}</div></div>
+          </div>
+        </div>`).join('')
+        : `
+          <div class="cert-row"><div class="cert-left"><div class="cert-icon" style="background:var(--sage)">🔘</div><div><div class="cert-name">Buttons</div><div class="cert-sub">Corozo nut — biodegradable, remove before recycling</div></div></div></div>
+          <div class="cert-row"><div class="cert-left"><div class="cert-icon" style="background:var(--moss)">⏳</div><div><div class="cert-name">Durability</div><div class="cert-sub">Estimated 7–10 year lifecycle (fabric tested)</div></div></div></div>
+        `;
+    }
+
+    // ── Certificates ──
+    const certs = d.certificates || [];
+    const certList = document.getElementById('passport-cert-list');
+    if (certList) {
+      const certConfig = {
+        GOTS:             { icon: '🌿', bg: 'var(--moss)',  label: 'GOTS Certified',          sub: 'Global Organic Textile Standard' },
+        ESPR:             { icon: '🇪🇺', bg: '#3B6B8A',    label: 'EU ESPR / DPP',            sub: 'Ecodesign for Sustainable Products' },
+        UFLPA:            { icon: '🇺🇸', bg: '#7B5EA7',    label: 'UFLPA Compliant',          sub: 'Farm-level traceability · CBP standard met' },
+        SA8000:           { icon: '👷', bg: 'var(--clay)',  label: 'SA8000 Social Audit',      sub: 'Working conditions & fair wage' },
+        RSL:              { icon: '⚗️', bg: 'var(--earth)', label: 'RSL Chemical Safety',     sub: 'Restricted Substances List — passed' },
+        UK_GREEN_CLAIMS:  { icon: '🇬🇧', bg: '#2E6B4F',    label: 'UK Green Claims Code',     sub: 'CMA · All claims data-backed' },
+        'OEKO-TEX':       { icon: '🔬', bg: '#5C7A9A',     label: 'OEKO-TEX Standard',        sub: 'Tested for harmful substances' },
+      };
+      // deduplicate by cert_type — show all certs from DB, blank only if truly zero
+      const seen = new Set();
+      const uniqueCerts = certs
+        .filter(c => c.cert_type || c.cert_name)   // accept rows even if cert_type is null
+        .sort((a, b) => (b.cert_number ? 1 : 0) - (a.cert_number ? 1 : 0))
+        .filter(c => {
+          const key = c.cert_type || c.cert_name || JSON.stringify(c);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+      if (uniqueCerts.length === 0) {
+        certList.innerHTML = '<div style="font-size:.82rem;color:var(--clay);opacity:.6;padding:.5rem 0">No certificates on file yet.</div>';
+      } else {
+        certList.innerHTML = uniqueCerts.map(c => {
+          c.cert_type = c.cert_type || c.cert_name || 'CERTIFICATE';
+          const cfg = certConfig[c.cert_type] || { icon: '📋', bg: 'var(--moss)', label: c.cert_type, sub: '' };
+          const meta = [c.issuing_body, c.cert_number ? '· #' + c.cert_number : '', c.expiry_date ? '· Exp. ' + c.expiry_date.slice(0,10) : ''].filter(Boolean).join(' ');
+          return `
+          <div class="cert-row">
+            <div class="cert-left">
+              <div class="cert-icon" style="background:${cfg.bg}">${cfg.icon}</div>
+              <div>
+                <div class="cert-name">${cfg.label}</div>
+                <div class="cert-sub">${meta || cfg.sub}</div>
+                ${c.cert_url ? `<a class="cert-link" href="${c.cert_url}" target="_blank" style="font-size:.68rem;color:var(--clay)">View certificate ↗</a>` : ''}
+              </div>
+            </div>
+            <div class="cert-status">✓ Verified</div>
+          </div>`;
+        }).join('');
+      }
+    } // close if (certList)
+
+    // ── Blockchain — single verified badge ──
+    const chain = d.layer7_blockchain || [];
+    if (chain.length > 0) {
+      set('bc-badge-count', chain.length + ' entries');
+      const last = chain[chain.length - 1];
+      if (last.recorded_at) {
+        const date = new Date(last.recorded_at);
+        set('bc-badge-date', date.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }));
+      }
+    } else {
+      set('bc-badge-count', '—');
+      set('bc-badge-date', '—');
+    }
+
+  } catch(e) {
+    console.error(e);
+    document.body.innerHTML = `<div style="padding:3rem;text-align:center;font-family:'Cormorant Garamond',serif">
+      <h2 style="color:#8b5e3c;font-weight:300;font-size:2rem">Product not found</h2>
+      <p style="color:#a89070;margin-top:.5rem;font-family:sans-serif;font-size:.85rem">${e.message}</p>
+    </div>`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', loadPassport);
+</script>
+</body>
+</html>

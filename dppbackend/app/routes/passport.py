@@ -1,0 +1,310 @@
+"""
+Passport Routes — Public QR scan endpoint.
+No authentication required. This is what the QR code on the label points to.
+
+Three views per DPP doc:
+  consumer   — artisan story, journey, impact
+  regulator  — full compliance data + audit file download
+  brand      — Scope 3 ESG data for corporate reporting
+"""
+
+import json
+from datetime import datetime
+
+from flask import Blueprint, request, Response
+
+from app.db import fetch_one, fetch_all, execute
+from app.utils.helpers import ok, not_found, serialise
+from app.utils.blockchain import verify_chain
+
+passport_bp = Blueprint("passport", __name__, url_prefix="/api/passport")
+
+
+def _log_scan(pid: int, scan_type: str):
+    try:
+        execute(
+            "INSERT INTO scan_logs (product_id, scan_type, ip_address, user_agent) VALUES (%s,%s,%s,%s)",
+            (pid, scan_type, request.remote_addr, (request.user_agent.string or "")[:500])
+        )
+    except Exception:
+        pass  # never let logging break the passport response
+
+
+@passport_bp.route("/<sgtin>", methods=["GET"])
+def get_passport(sgtin):
+    """
+    Full 7-layer Digital Product Passport.
+    Public endpoint — no auth required.
+
+    Query params:
+      ?view=consumer    (default) — artisan story, impact, journey
+      ?view=regulator   — full compliance data
+      ?view=brand       — ESG / Scope 3 data for corporate reporting
+    """
+    product = fetch_one(
+        """SELECT p.*, ac.cluster_name, ac.region, ac.state,
+                  ac.latitude AS cluster_latitude, ac.longitude AS cluster_longitude
+           FROM products p
+           LEFT JOIN artisan_clusters ac ON ac.id = p.cluster_id
+           WHERE p.sgtin = %s AND p.is_active = 1""",
+        (sgtin,)
+    )
+    if not product:
+        return not_found("Product passport")
+
+    pid = product["id"]
+    view = request.args.get("view", "consumer")
+
+    # ── Log the scan ──────────────────────────────────────────────────────────
+    _log_scan(pid, view)
+
+    # ── Layer 2: Raw Materials ─────────────────────────────────────────────────
+    materials = fetch_all(
+        """SELECT fiber_type, fiber_origin, farm_name, farm_latitude, farm_longitude,
+                  spinning_mill, gots_cert_url, gots_cert_number, rsl_compliant,
+                  percentage, notes
+           FROM product_materials WHERE product_id = %s ORDER BY percentage DESC""",
+        (pid,)
+    )
+
+    # ── Layer 3: Manufacturing / Artisan Story ────────────────────────────────
+    manufacturing = fetch_all(
+        """SELECT
+               mr.hours_worked, mr.production_date,
+               mr.social_audit_url, mr.social_audit_standard,
+               a.full_name       AS artisan_name,
+               a.craft_type,
+               a.photo_url       AS artisan_photo_url,
+               a.fair_wage_verified,
+               a.income_premium,
+               a.bio             AS artisan_bio,
+               ac.cluster_name,
+               ac.region, ac.state,
+               ac.latitude       AS cluster_latitude,
+               ac.longitude      AS cluster_longitude,
+               ac.audit_report_url
+           FROM manufacturing_records mr
+           JOIN artisans         a  ON a.id  = mr.artisan_id
+           JOIN artisan_clusters ac ON ac.id = mr.cluster_id
+           WHERE mr.product_id = %s""",
+        (pid,)
+    )
+
+    # ── Layer 3b: Creative Story (artist/designer/manufacturer) ────────────────
+    story = fetch_one(
+        """SELECT * FROM v_product_story WHERE product_id = %s""",
+        (pid,)
+    )
+
+    # ── Layer 4: Environmental Impact ─────────────────────────────────────────
+    env = fetch_one(
+        """SELECT carbon_footprint_co2e, industry_avg_co2e, water_saved_liters,
+                  lca_methodology, assessment_date, assessment_body, report_url,
+                  energy_used_kwh, transport_emissions_co2e
+           FROM environmental_impact WHERE product_id = %s""",
+        (pid,)
+    )
+    if env and env["carbon_footprint_co2e"] and env["industry_avg_co2e"]:
+        env = dict(env)
+        saved = float(env["industry_avg_co2e"]) - float(env["carbon_footprint_co2e"])
+        env["carbon_saved_co2e"]    = round(saved, 4)
+        env["carbon_reduction_pct"] = round(saved / float(env["industry_avg_co2e"]) * 100, 1)
+
+    # ── Layer 5: Circularity ──────────────────────────────────────────────────
+    circularity = fetch_one(
+        """SELECT disassembly_instructions, component_breakdown,
+                  recyclability_score, end_of_life_options,
+                  recycler_notes, takeback_program_url
+           FROM circularity WHERE product_id = %s""",
+        (pid,)
+    )
+
+    # ── Layer 6: Care & Performance ───────────────────────────────────────────
+    care = fetch_one(
+        """SELECT wash_instructions, durability_score, estimated_life_years,
+                  care_symbols, storage_instructions, repair_guidance
+           FROM care_instructions WHERE product_id = %s""",
+        (pid,)
+    )
+
+    # ── Layer 7: Blockchain ───────────────────────────────────────────────────
+    blockchain = fetch_all(
+        """SELECT entry_type, data_hash, previous_hash, ledger_ref, recorded_at
+           FROM blockchain_entries WHERE product_id = %s ORDER BY id ASC""",
+        (pid,)
+    )
+
+    # ── Compliance Certificates ───────────────────────────────────────────────
+    certs = fetch_all(
+        """SELECT cert_type, cert_number, issuing_body,
+                  issued_date, expiry_date, cert_url, jurisdiction
+           FROM certificates
+           WHERE cert_number IS NOT NULL
+           UNION
+           SELECT cert_type, cert_number, issuing_body,
+                  issued_date, expiry_date, cert_url, jurisdiction
+           FROM certificates c2
+           WHERE cert_number IS NULL
+             AND NOT EXISTS (
+               SELECT 1 FROM certificates c3
+               WHERE c3.cert_type = c2.cert_type AND c3.cert_number IS NOT NULL
+             )
+           ORDER BY cert_type, issued_date DESC""",
+        ()
+    )
+
+    # ── Build response ────────────────────────────────────────────────────────
+    passport = {
+        "passport_view":   view,
+        "generated_at":    datetime.utcnow().isoformat(),
+
+        "layer1_identification": serialise(dict(product)),
+        "layer2_product_materials":  serialise(list(materials)),
+        "layer3_manufacturing":  serialise(list(manufacturing)),
+        "layer3_story":          serialise(dict(story)) if story else None,
+        "layer4_environmental":  serialise(env) if env else None,
+        "layer5_circularity":    serialise(dict(circularity)) if circularity else None,
+        "layer6_care_instructions": serialise(dict(care)) if care else None,
+        "layer7_blockchain":     serialise(list(blockchain)),
+        "certificates": serialise(list(certs)),
+    }
+
+    # Regulator / brand get additional data
+    if view == "regulator":
+        chain_integrity = verify_chain(pid)
+        passport["chain_integrity"]    = chain_integrity
+        passport["regulatory_check"]   = _regulatory_check(certs, env, pid)
+
+    if view == "brand":
+        passport["scope3_reporting"] = _scope3_data(env, manufacturing)
+
+    return ok(passport)
+
+
+@passport_bp.route("/<sgtin>/audit-file", methods=["GET"])
+def download_audit_file(sgtin):
+    """
+    Regulator-facing compliance audit file download.
+    Returns a structured JSON file containing all certificates,
+    LCA data, blockchain chain — the 'Compliance Audit File' from the doc.
+    """
+    product = fetch_one("SELECT * FROM products WHERE sgtin = %s AND is_active = 1", (sgtin,))
+    if not product:
+        return not_found("Product")
+
+    pid = product["id"]
+    _log_scan(pid, "regulator")
+
+    certs      = fetch_all("SELECT * FROM certificates GROUP BY cert_type, cert_number ORDER BY cert_type, issued_date DESC", ())
+    env        = fetch_one("SELECT * FROM environmental_impact WHERE product_id = %s", (pid,))
+    mfg        = fetch_all(
+        """SELECT mr.*, a.full_name, a.fair_wage_verified, a.income_premium,
+                  ac.cluster_name, ac.region, ac.audit_report_url
+           FROM manufacturing_records mr
+           JOIN artisans a ON a.id = mr.artisan_id
+           JOIN artisan_clusters ac ON ac.id = mr.cluster_id
+           WHERE mr.product_id = %s""",
+        (pid,)
+    )
+    materials  = fetch_all("SELECT * FROM product_materials WHERE product_id = %s", (pid,))
+    blockchain = fetch_all("SELECT * FROM blockchain_entries WHERE product_id = %s ORDER BY id", (pid,))
+    circularity= fetch_one("SELECT * FROM circularity WHERE product_id = %s", (pid,))
+    care       = fetch_one("SELECT * FROM care_instructions WHERE product_id = %s", (pid,))
+    chain_ok   = verify_chain(pid)
+
+    audit = {
+        "document_type":    "Silasya Earth — DPP Compliance Audit File",
+        "document_version": "1.0",
+        "generated_at":     datetime.utcnow().isoformat(),
+        "sgtin":            sgtin,
+        "product":          serialise(dict(product)),
+        "regulatory_coverage": _regulatory_check(list(certs), env, pid),
+        "layer1_identification": serialise(dict(product)),
+        "layer2_product_materials":  serialise(list(materials)),
+        "layer3_manufacturing":  serialise(list(mfg)),
+        "layer4_environmental":  serialise(env),
+        "layer5_circularity":    serialise(dict(circularity)) if circularity else None,
+        "layer6_care_instructions": serialise(dict(care)) if care else None,
+        "layer7_blockchain": {
+            "entries":         serialise(list(blockchain)),
+            "chain_integrity": chain_ok,
+        },
+        "certificates": serialise(list(certs)),
+    }
+
+    return Response(
+        json.dumps(audit, default=str, indent=2),
+        mimetype="application/json",
+        headers={
+            "Content-Disposition": f'attachment; filename="silasya_dpp_audit_{sgtin}.json"'
+        }
+    )
+
+
+@passport_bp.route("/<sgtin>/scan-count", methods=["GET"])
+def scan_count(sgtin):
+    """Return total scan count per view type for a product."""
+    product = fetch_one("SELECT id FROM products WHERE sgtin = %s", (sgtin,))
+    if not product:
+        return not_found("Product")
+
+    counts = fetch_all(
+        "SELECT scan_type, COUNT(*) AS count FROM scan_logs WHERE product_id = %s GROUP BY scan_type",
+        (product["id"],)
+    )
+    return ok({"sgtin": sgtin, "scans": {r["scan_type"]: r["count"] for r in counts}})
+
+
+# ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _regulatory_check(certs, env, pid):
+    from datetime import date
+    today      = date.today()
+    valid      = [c for c in certs if not c.get("expiry_date") or c["expiry_date"] >= today]
+    cert_types = {c["cert_type"] for c in valid}
+    juris      = {c["jurisdiction"] for c in valid}
+
+    farm_trace = bool(fetch_one(
+        "SELECT id FROM product_materials WHERE product_id=%s AND farm_name IS NOT NULL AND gots_cert_url IS NOT NULL",
+        (pid,)
+    ))
+
+    return {
+        "EU_ESPR": {
+            "compliant":   bool({"ESPR","GOTS","EU_GREEN_CLAIMS"} & cert_types and {"EU","GLOBAL"} & juris),
+            "risk_if_not": "Fine up to 4% annual turnover",
+        },
+        "US_UFLPA": {
+            "compliant":   bool({"UFLPA","US_CBP"} & cert_types or (farm_trace and "GOTS" in cert_types)),
+            "risk_if_not": "100% cargo seizure at US border",
+        },
+        "UK_Green_Claims": {
+            "compliant":   bool({"UK_GREEN_CLAIMS","CMA","GOTS"} & cert_types and bool(env)),
+            "risk_if_not": "Unlimited CMA fines",
+        },
+        "RSL_Chemical": {
+            "compliant": "RSL" in cert_types,
+        },
+        "SA8000_Social": {
+            "compliant": bool({"SA8000","SMETA"} & cert_types),
+        },
+        "LCA_Data": {
+            "compliant": bool(env),
+        },
+    }
+
+
+def _scope3_data(env, mfg):
+    """Corporate Scope 3 ESG data for B2B brand reporting."""
+    if not env:
+        return {"available": False}
+    return {
+        "available":              True,
+        "carbon_footprint_co2e":  env.get("carbon_footprint_co2e"),
+        "water_saved_liters":     env.get("water_saved_liters"),
+        "carbon_reduction_pct":   env.get("carbon_reduction_pct"),
+        "lca_methodology":        env.get("lca_methodology"),
+        "artisan_hours":          sum(float(r.get("hours_worked") or 0) for r in mfg),
+        "fair_wage_verified":     all(r.get("fair_wage_verified") for r in mfg) if mfg else False,
+        "scope3_category":        "Cat. 1 — Purchased Goods & Services",
+    }

@@ -1,0 +1,226 @@
+"""
+Blockchain utility — Silasya DPP
+==================================
+DSA used:
+  ChainNode          — doubly linked list node (data + prev + next pointers)
+  BlockchainDLL      — doubly linked list of chain entries
+                       forward traverse  = chronological audit trail
+                       backward traverse = most-recent-first for quick lookup
+  verify_chain()     — O(n) single pass using DLL traversal
+  append_chain_entry()— O(1) tail insert
+
+Why doubly linked vs singly:
+  Singly linked: can only walk forward (oldest → newest).
+  Doubly linked: can walk backward too (newest → oldest), which is useful
+  for "show me the last N changes" without reversing the whole list.
+"""
+
+import hashlib
+import json
+from datetime import datetime
+from dataclasses import dataclass, field
+from typing import Optional
+
+from app.db import fetch_one, fetch_all, execute
+
+
+GENESIS_HASH = "0" * 64  # Genesis sentinel — no previous block
+
+
+# ── DSA: Doubly Linked List Node ─────────────────────────────────────────────
+
+@dataclass
+class ChainNode:
+    """
+    One node in the blockchain doubly linked list.
+
+    Fields mirror the DB row so the in-memory list is a 1:1 representation.
+    prev → older entry    next → newer entry
+    """
+    row_id:        int
+    entry_type:    str
+    data_hash:     str
+    previous_hash: str
+    recorded_at:   object
+    prev: Optional["ChainNode"] = field(default=None, repr=False)
+    next: Optional["ChainNode"] = field(default=None, repr=False)
+
+
+class BlockchainDLL:
+    """
+    Doubly linked list of ChainNodes for one product's blockchain.
+
+    head → oldest entry (genesis)
+    tail → newest entry (latest)
+
+    Operations:
+      append(node)     O(1)  — add to tail
+      verify()         O(n)  — walk forward checking every prev_hash link
+      to_list_reverse()O(n)  — walk backward for newest-first display
+      broken_at()      O(n)  — returns first node where chain is broken
+    """
+
+    def __init__(self):
+        self.head: Optional[ChainNode] = None
+        self.tail: Optional[ChainNode] = None
+        self.size: int = 0
+
+    def append(self, node: ChainNode) -> None:
+        """O(1) tail insert — new entry becomes the newest."""
+        if self.tail:
+            node.prev = self.tail   # new node points back to current tail
+            self.tail.next = node   # current tail points forward to new node
+            self.tail = node
+        else:
+            self.head = node
+            self.tail = node
+        self.size += 1
+
+    def verify(self) -> dict:
+        """
+        O(n) forward traversal — check every link is intact.
+        Returns {"chain_valid": bool, "entries": int, "broken_at": int|None}
+        """
+        if not self.head:
+            return {"chain_valid": True, "entries": 0, "broken_at": None}
+
+        expected_prev = GENESIS_HASH
+        cur = self.head
+
+        while cur:
+            if cur.previous_hash != expected_prev:
+                return {
+                    "chain_valid": False,
+                    "entries":     self.size,
+                    "broken_at":   cur.row_id,
+                }
+            expected_prev = cur.data_hash
+            cur = cur.next  # advance pointer
+
+        return {"chain_valid": True, "entries": self.size, "broken_at": None}
+
+    def to_list(self) -> list[dict]:
+        """O(n) forward traversal → chronological list for the passport."""
+        result = []
+        cur = self.head
+        while cur:
+            result.append({
+                "id":            cur.row_id,
+                "entry_type":    cur.entry_type,
+                "data_hash":     cur.data_hash,
+                "previous_hash": cur.previous_hash,
+                "recorded_at":   str(cur.recorded_at),
+            })
+            cur = cur.next
+        return result
+
+    def to_list_reverse(self) -> list[dict]:
+        """O(n) backward traversal → newest-first for admin 'recent changes' view."""
+        result = []
+        cur = self.tail
+        while cur:
+            result.append({
+                "id":         cur.row_id,
+                "entry_type": cur.entry_type,
+                "data_hash":  cur.data_hash,
+                "recorded_at":str(cur.recorded_at),
+            })
+            cur = cur.prev  # walk backward using prev pointer
+        return result
+
+    def latest_hash(self) -> str:
+        """O(1) — tail gives us the latest hash directly."""
+        return self.tail.data_hash if self.tail else GENESIS_HASH
+
+
+def _load_chain(product_id: int) -> BlockchainDLL:
+    """
+    Fetch all blockchain_entries for a product from DB and build the DLL.
+    DB returns rows ordered by id ASC (oldest first) so we just append each.
+    """
+    rows = fetch_all(
+        """SELECT id, entry_type, data_hash, previous_hash, recorded_at
+           FROM blockchain_entries
+           WHERE product_id = %s ORDER BY id ASC""",
+        (product_id,),
+    )
+
+    dll = BlockchainDLL()
+    for row in rows:
+        node = ChainNode(
+            row_id        = row["id"],
+            entry_type    = row["entry_type"],
+            data_hash     = row["data_hash"],
+            previous_hash = row["previous_hash"],
+            recorded_at   = row["recorded_at"],
+        )
+        dll.append(node)  # O(1) each
+
+    return dll
+
+
+# ── Hash computation ─────────────────────────────────────────────────────────
+
+def _compute_hash(data: dict, prev_hash: str) -> str:
+    """SHA-256 of (canonicalised JSON payload + previous hash)."""
+    raw = json.dumps(data, sort_keys=True, default=str) + prev_hash
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+# ── Public API ───────────────────────────────────────────────────────────────
+
+def append_chain_entry(
+    product_id: int,
+    entry_type: str,
+    payload: dict,
+    recorded_by: str = "system",
+    ledger_ref: str = None,
+) -> str:
+    """
+    Append an immutable entry to this product's blockchain.
+
+    Uses the DLL's O(1) latest_hash() to find the previous hash
+    without re-scanning the whole chain.
+
+    Returns the new data_hash.
+    """
+    # Load chain to get latest hash — O(n) load but O(1) tail lookup
+    dll       = _load_chain(product_id)
+    prev_hash = dll.latest_hash()  # O(1)
+    data_hash = _compute_hash(payload, prev_hash)
+
+    execute(
+        """INSERT INTO blockchain_entries
+               (product_id, entry_type, data_hash, previous_hash,
+                ledger_ref, recorded_by, recorded_at)
+           VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+        (
+            product_id,
+            entry_type,
+            data_hash,
+            prev_hash,
+            ledger_ref,
+            recorded_by,
+            datetime.utcnow(),
+        ),
+    )
+    return data_hash
+
+
+def verify_chain(product_id: int) -> dict:
+    """
+    Load the full chain into a DLL then verify using DLL's forward traversal.
+    O(n) — every link checked exactly once.
+    """
+    dll = _load_chain(product_id)
+    return dll.verify()
+
+
+def get_chain(product_id: int, reverse: bool = False) -> list[dict]:
+    """
+    Return the chain as a list.
+    reverse=False → chronological (oldest first) — for passport display
+    reverse=True  → newest first — for admin "recent changes"
+    """
+    dll = _load_chain(product_id)
+    return dll.to_list_reverse() if reverse else dll.to_list()s
