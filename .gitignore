@@ -27,3 +27,9 @@ Thumbs.db
 # ngrok
 *.ngrok*
 .env.save
+
+# Loose backup/draft files in root
+*.py
+*.sql
+fix_ngrok_and_start.sh
+silasyapassport.html

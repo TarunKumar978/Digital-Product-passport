@@ -100,7 +100,7 @@
 
   .brand-name {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 1rem; font-weight: 300;
+    font-size: 1.3rem; font-weight: 300;
     letter-spacing: 0.2em; text-transform: uppercase;
     color: var(--sand);
   }
@@ -581,8 +581,8 @@
   <div class="hero-content">
     <div class="brand-row">
       <div class="brand-logo-wrap" id="passport-brand-logo-wrap">
-        <img id="passport-brand-logo-img" src="" alt="" style="height:36px;width:auto;object-fit:contain;display:none;border-radius:6px;"/>
-        <div class="brand-dot" id="passport-brand-dot" style="display:flex;">SE</div>
+        <img id="passport-brand-logo-img" src="" alt="" style="height:52px;width:52px;object-fit:cover;display:none;border-radius:10px;"/>
+        <div class="brand-dot" id="passport-brand-dot" style="display:flex;width:52px;height:52px;font-size:.85rem;">SE</div>
       </div>
       <div class="brand-name" id="passport-brand-name">Silasya Earth</div>
     </div>
@@ -615,7 +615,7 @@
 
 <!-- ARTISAN CARD -->
 <div class="artisan-card" id="passport-artisan-card">
-  <div class="artisan-avatar" id="passport-artisan-avatar">D</div>
+  <div class="artisan-avatar" id="passport-artisan-avatar"></div>
   <div class="artisan-info">
     <h3 id="passport-artisan-name">—</h3>
     <p id="passport-artisan-detail">—</p>
@@ -628,11 +628,14 @@
   <div class="modal-box">
     <button class="modal-close" onclick="document.getElementById('passport-artist-modal').style.display='none'">✕</button>
     <div class="modal-eyebrow" id="passport-modal-label">🎨 Artist Story</div>
-    <div class="modal-name" id="passport-modal-artist-name">—</div>
+    <div style="display:flex;align-items:center;gap:1rem;margin-bottom:.8rem">
+      <div id="passport-modal-photo" style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--sand),var(--clay));display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;color:white;flex-shrink:0;overflow:hidden"></div>
+      <div class="modal-name" id="passport-modal-artist-name">—</div>
+    </div>
     <div class="modal-style" id="passport-modal-art-style">—</div>
     <div class="modal-bio" id="passport-modal-artist-bio">—</div>
-    <div class="modal-sub" id="passport-modal-art-title">—</div>
-    <div class="modal-sub" id="passport-modal-license">—</div>
+    <div class="modal-sub" id="passport-modal-art-title" style="display:none"></div>
+    <div class="modal-sub" id="passport-modal-license" style="display:none"></div>
   </div>
 </div>
 
@@ -801,7 +804,7 @@ function switchTab(tab, btn) {
 
 function set(id, val) {
   const el = document.getElementById(id);
-  if (el) el.textContent = val || '—';
+  if (el) el.textContent = (val === undefined || val === null) ? '—' : val;
 }
 
 function shareWhatsApp() {
@@ -813,14 +816,45 @@ function copyPassportLink() {
   navigator.clipboard.writeText(window.location.href).then(() => alert('Link copied!'));
 }
 
+function showArtistModal() {
+  const d = window._artistData || {};
+  set('passport-modal-label', '🎨 ARTIST');
+  set('passport-modal-artist-name', d.name || '—');
+  set('passport-modal-art-style', [d.style, d.state].filter(Boolean).join(' · '));
+  set('passport-modal-artist-bio', d.bio || '');
+
+  const titleEl = document.getElementById('passport-modal-art-title');
+  if (titleEl) {
+    const parts = [d.title ? 'Artwork: ' + d.title : '', d.royalty].filter(Boolean).join(' · ');
+    titleEl.textContent = parts; titleEl.style.display = parts ? '' : 'none';
+  }
+  const licEl = document.getElementById('passport-modal-license');
+  if (licEl) {
+    licEl.textContent = d.license ? 'License: ' + d.license : '';
+    licEl.style.display = d.license ? '' : 'none';
+  }
+  // Show photo if available
+  const avatarEl = document.getElementById('passport-artisan-avatar');
+  const nameEl = document.getElementById('passport-modal-artist-name');
+  if (nameEl && d.instagram) {
+    nameEl.innerHTML = `<a href="${d.instagram}" target="_blank" style="color:inherit;text-decoration:underline dotted">${d.name} ↗</a>`;
+  }
+  const photoEl = document.getElementById('passport-modal-photo');
+  if (photoEl) photoEl.textContent = (name || 'A')[0].toUpperCase();
+  document.getElementById('passport-artist-modal').style.display = 'flex';
+}
+
 function showCreativeModal(type, name, line1, line2, bio) {
   const icons = { designer: '✏️', manufacturer: '🏭', artist: '🎨' };
-  set('passport-modal-label', (icons[type] || '🎨') + ' ' + type.toUpperCase());
+  const icons2 = { designer: '✏️ DESIGNER', manufacturer: '🏭 MANUFACTURER', artist: '🎨 ARTIST' };
+  set('passport-modal-label', icons2[type] || '🎨 ARTIST');
   set('passport-modal-artist-name', name);
   set('passport-modal-art-style', [line1, line2].filter(Boolean).join(' · '));
   set('passport-modal-artist-bio', bio || '');
-  set('passport-modal-art-title', '');
-  set('passport-modal-license', '');
+  const t = document.getElementById('passport-modal-art-title'); if(t){t.textContent='';t.style.display='none';}
+  const l = document.getElementById('passport-modal-license'); if(l){l.textContent='';l.style.display='none';}
+  const photoEl = document.getElementById('passport-modal-photo');
+  if (photoEl) photoEl.textContent = (name || 'A')[0].toUpperCase();
   document.getElementById('passport-artist-modal').style.display = 'flex';
 }
 
@@ -849,7 +883,7 @@ async function loadPassport() {
     set('passport-cluster', p.cluster_name || p.region || '—');
     const batchTag = document.getElementById('passport-batch-tag');
     if (batchTag) batchTag.style.visibility = 'visible';
-    set('passport-brand-name', p.brand_id || 'Silasya Earth');
+    set('passport-brand-name', 'Silasya Earth');
     const dotEl = document.getElementById('passport-brand-dot');
     if (dotEl) dotEl.textContent = (p.brand_id || 'SE').slice(0, 2).toUpperCase();
     document.title = (p.product_name || 'Product') + ' — TrustTag™ Passport';
@@ -880,8 +914,11 @@ async function loadPassport() {
       const artisanName = m.artisan_name;
       const avatarEl = document.getElementById('passport-artisan-avatar');
       if (avatarEl) {
-        const photo = d.layer3_story && d.layer3_story.artist_photo;
-        const photoUrl = photo && photo.startsWith('/uploads/') ? API_BASE + photo : photo;
+        let photo = d.layer3_story && d.layer3_story.artist_photo;
+        if (photo && (photo.includes('127.0.0.1') || photo.includes('localhost'))) {
+          photo = photo.replace(/https?:\/\/[^/]+/, window.location.origin);
+        }
+        const photoUrl = photo && photo.includes('/uploads/') ? photo.replace(/https?:\/\/[^/]+/, window.location.origin) : photo;
         if (photoUrl) {
           avatarEl.innerHTML = `<img src="${photoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.textContent='${artisanName.charAt(0).toUpperCase()}'">`;
         } else {
@@ -897,11 +934,27 @@ async function loadPassport() {
     // ── Layer 3 — Story (artist/designer/manufacturer) ──
     const story = d.layer3_story;
     if (story) {
+      let artistPhoto = story.artist_photo || '';
+      if (artistPhoto && (artistPhoto.includes('127.0.0.1') || artistPhoto.includes('localhost'))) {
+        artistPhoto = artistPhoto.replace(/https?:\/\/[^/]+/, window.location.origin);
+      }
+      window._artistData = {
+        name:    story.artist_name || '',
+        style:   story.art_style || '',
+        bio:     story.artist_bio || '',
+        title:   story.art_title || '',
+        license: story.art_license_type || '',
+        royalty: story.royalty_pct ? story.royalty_pct + '% royalty' : '',
+        state:   story.artist_state || '',
+        photo:   artistPhoto
+      };
       set('passport-modal-artist-name', story.artist_name || '');
       set('passport-modal-art-style', story.art_style || '');
       set('passport-modal-artist-bio', story.artist_bio || '');
-      set('passport-modal-art-title', story.art_title ? 'Artwork: ' + story.art_title : '');
-      set('passport-modal-license', story.art_license_type ? 'License: ' + story.art_license_type : '');
+      const titleEl = document.getElementById('passport-modal-art-title');
+      if (titleEl) { titleEl.textContent = story.art_title ? 'Artwork: ' + story.art_title : ''; titleEl.style.display = story.art_title ? '' : 'none'; }
+      const licEl = document.getElementById('passport-modal-license');
+      if (licEl) { licEl.textContent = story.art_license_type ? 'License: ' + story.art_license_type : ''; licEl.style.display = story.art_license_type ? '' : 'none'; }
 
       // Artist name clickable
       const artEl = document.getElementById('passport-artisan-name');
@@ -909,7 +962,7 @@ async function loadPassport() {
         if (story.instagram_url) {
           artEl.innerHTML = `<a href="${story.instagram_url}" target="_blank" style="color:inherit;text-decoration:underline dotted;">${story.artist_name} ↗</a>`;
         } else if (story.artist_bio) {
-          artEl.innerHTML = `<span onclick="document.getElementById('passport-artist-modal').style.display='flex'" style="cursor:pointer;text-decoration:underline dotted;">${story.artist_name} ↗</span>`;
+          artEl.innerHTML = `<span onclick="showArtistModal()" style="cursor:pointer;text-decoration:underline dotted;">${story.artist_name} ↗</span>`;
         }
       }
 
