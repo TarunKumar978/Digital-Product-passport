@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TrustTag™ — Shipment Passport</title>
+<style>
+  :root {
+    --brown: #3b2a1a;
+    --gold: #c9973a;
+    --tan: #8b7355;
+    --cream: #faf7f2;
+    --border: #e8ddd0;
+    --green: #2d6a4f;
+    --light-green: #e8f5ee;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--cream); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:var(--brown); min-height:100vh; }
+
+  /* HEADER */
+  .header { background:var(--brown); color:white; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
+  .header-brand { font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:#d4a574; }
+  .header-title { font-size:16px; font-weight:600; }
+  .trust-badge { background:var(--gold); color:white; font-size:10px; padding:3px 8px; border-radius:20px; letter-spacing:.05em; }
+
+  /* HERO */
+  .hero { background:white; border-bottom:1px solid var(--border); padding:20px; }
+  .shipment-ref { font-size:11px; color:var(--tan); letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
+  .shipment-title { font-size:22px; font-weight:700; color:var(--brown); margin-bottom:12px; }
+  .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .meta-item label { font-size:10px; color:var(--tan); text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:2px; }
+  .meta-item span { font-size:13px; font-weight:500; color:var(--brown); }
+
+  /* COMPLIANCE BANNER */
+  .compliance-banner { background:var(--light-green); border-left:3px solid var(--green); margin:16px; border-radius:8px; padding:12px 16px; display:flex; align-items:center; gap:10px; }
+  .compliance-icon { font-size:20px; }
+  .compliance-text { font-size:12px; color:var(--green); font-weight:600; }
+  .compliance-sub { font-size:11px; color:#4a9e71; margin-top:2px; }
+
+  /* STATS */
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); margin:0 16px 16px; border-radius:10px; overflow:hidden; }
+  .stat { background:white; padding:14px 10px; text-align:center; }
+  .stat-number { font-size:22px; font-weight:700; color:var(--gold); }
+  .stat-label { font-size:10px; color:var(--tan); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+
+  /* TABS */
+  .tabs { display:flex; background:white; border-bottom:1px solid var(--border); overflow-x:auto; padding:0 16px; }
+  .tab { padding:12px 16px; font-size:12px; font-weight:600; color:var(--tan); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+  .tab.active { color:var(--brown); border-bottom-color:var(--gold); }
+
+  /* CONTENT */
+  .tab-content { display:none; padding:16px; }
+  .tab-content.active { display:block; }
+
+  /* PRODUCT LIST */
+  .product-card { background:white; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; }
+  .product-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+  .product-name { font-size:14px; font-weight:600; color:var(--brown); }
+  .product-type { font-size:10px; background:#f0e8dc; color:var(--tan); padding:2px 8px; border-radius:20px; }
+  .product-meta { font-size:11px; color:var(--tan); margin-bottom:8px; }
+  .product-sgtin { font-size:10px; font-family:monospace; color:#aaa; }
+  .passport-link { font-size:11px; color:var(--gold); text-decoration:none; font-weight:600; }
+
+  /* CERTIFICATES */
+  .cert-card { background:white; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; }
+  .cert-icon { width:36px; height:36px; background:var(--light-green); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .cert-name { font-size:13px; font-weight:600; color:var(--brown); }
+  .cert-number { font-size:11px; color:var(--tan); margin-top:2px; }
+  .cert-expiry { font-size:10px; color:#aaa; margin-top:2px; }
+
+  /* SHIPPING INFO */
+  .info-row { background:white; border-radius:10px; padding:14px; margin-bottom:10px; }
+  .info-row label { font-size:10px; color:var(--tan); text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:4px; }
+  .info-row span { font-size:13px; color:var(--brown); font-weight:500; }
+
+  /* LOADING */
+  .loading { text-align:center; padding:60px 20px; color:var(--tan); }
+  .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* EMPTY */
+  .empty { text-align:center; padding:40px 20px; color:var(--tan); font-size:13px; }
+
+  /* FOOTER */
+  .footer { text-align:center; padding:24px; font-size:10px; color:var(--tan); letter-spacing:.08em; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="header-brand">TrustTag™ by Silasya Earth</div>
+    <div class="header-title">Shipment Passport</div>
+  </div>
+  <div class="trust-badge">B2B Verified</div>
+</div>
+
+<div id="loading" class="loading">
+  <div class="spinner"></div>
+  <div>Loading shipment data...</div>
+</div>
+
+<div id="main" style="display:none">
+
+  <div class="hero">
+    <div class="shipment-ref" id="shipment-ref">—</div>
+    <div class="shipment-title" id="shipment-title">Loading...</div>
+    <div class="meta-grid">
+      <div class="meta-item">
+        <label>Buyer</label>
+        <span id="buyer-name">—</span>
+      </div>
+      <div class="meta-item">
+        <label>Country</label>
+        <span id="buyer-country">—</span>
+      </div>
+      <div class="meta-item">
+        <label>ETD</label>
+        <span id="etd">—</span>
+      </div>
+      <div class="meta-item">
+        <label>ETA</label>
+        <span id="eta">—</span>
+      </div>
+      <div class="meta-item">
+        <label>Port of Export</label>
+        <span id="port-export">—</span>
+      </div>
+      <div class="meta-item">
+        <label>Incoterms</label>
+        <span id="incoterms">—</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="compliance-banner">
+    <div class="compliance-icon">✅</div>
+    <div>
+      <div class="compliance-text">EU ESPR Compliant Shipment</div>
+      <div class="compliance-sub">All products carry verified Digital Product Passports</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-number" id="total-products">—</div>
+      <div class="stat-label">Products</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number" id="total-certs">—</div>
+      <div class="stat-label">Certificates</div>
+    </div>
+    <div class="stat">
+      <div class="stat-number" id="verified-pct">100%</div>
+      <div class="stat-label">Verified</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('products', this)">Products</div>
+    <div class="tab" onclick="switchTab('certificates', this)">Certificates</div>
+    <div class="tab" onclick="switchTab('shipping', this)">Shipping</div>
+  </div>
+
+  <div id="tab-products" class="tab-content active">
+    <div id="products-list"><div class="empty">No products found</div></div>
+  </div>
+
+  <div id="tab-certificates" class="tab-content">
+    <div id="certs-list"><div class="empty">No certificates found</div></div>
+  </div>
+
+  <div id="tab-shipping" class="tab-content">
+    <div id="shipping-info"></div>
+  </div>
+
+</div>
+
+<div class="footer">TrustTag™ · Powered by Silasya Earth · Authenticated Digital Product Passport</div>
+
+<script>
+const API_BASE = 'https://YOUR-NGROK-URL'; // ← auto-patched by startup script
+
+function getParam(key) {
+  return new URLSearchParams(window.location.search).get(key);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+
+function fmt(val) { return val || '—'; }
+function fmtDate(val) {
+  if (!val) return '—';
+  return new Date(val).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+}
+
+async function load() {
+  const sid = getParam('shipment_id');
+  if (!sid) {
+    document.getElementById('loading').innerHTML = '<div style="padding:40px;text-align:center;color:#c0392b">Invalid shipment link</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/api/shipments/${sid}`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+    const json = await res.json();
+    if (!json.data) throw new Error('Not found');
+
+    const { shipment, items } = json.data;
+
+    // Hero
+    document.getElementById('shipment-ref').textContent = shipment.shipment_ref || `Shipment #${sid}`;
+    document.getElementById('shipment-title').textContent = `${shipment.buyer_company || shipment.buyer_name} Shipment`;
+    document.getElementById('buyer-name').textContent = fmt(shipment.buyer_name);
+    document.getElementById('buyer-country').textContent = fmt(shipment.buyer_country);
+    document.getElementById('etd').textContent = fmtDate(shipment.etd);
+    document.getElementById('eta').textContent = fmtDate(shipment.eta);
+    document.getElementById('port-export').textContent = fmt(shipment.port_of_export);
+    document.getElementById('incoterms').textContent = fmt(shipment.incoterms);
+
+    // Stats
+    document.getElementById('total-products').textContent = items.length;
+
+    // Products tab
+    if (items.length > 0) {
+      document.getElementById('products-list').innerHTML = items.map(p => `
+        <div class="product-card">
+          <div class="product-card-header">
+            <div class="product-name">${p.product_name || 'Product'}</div>
+            <div class="product-type">${p.product_type || 'Garment'}</div>
+          </div>
+          <div class="product-meta">Batch: ${p.batch_number || '—'} · Qty: ${p.quantity || 1}</div>
+          <div class="product-sgtin">${p.sgtin || ''}</div>
+          ${p.sgtin ? `<a class="passport-link" href="${API_BASE.replace('/api','')}/dppfrontend/silasyapassport.html?sgtin=${encodeURIComponent(p.sgtin)}" target="_blank">View Full Passport →</a>` : ''}
+        </div>
+      `).join('');
+    }
+
+    // Fetch certificates via compliance endpoint
+    const compRes = await fetch(`${API_BASE}/api/shipments/${sid}/compliance`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+    const compJson = await compRes.json();
+
+    // Fetch global certs
+    const certRes = await fetch(`${API_BASE}/api/certs`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    });
+    const certJson = await certRes.json();
+    const certs = certJson?.data?.certificates || certJson?.data || [];
+
+    document.getElementById('total-certs').textContent = certs.length;
+
+    if (certs.length > 0) {
+      document.getElementById('certs-list').innerHTML = certs.map(c => `
+        <div class="cert-card">
+          <div class="cert-icon">🏅</div>
+          <div>
+            <div class="cert-name">${c.cert_type || 'Certificate'}</div>
+            <div class="cert-number">${c.cert_number || c.issuing_body || '—'}</div>
+            <div class="cert-expiry">Expires: ${fmtDate(c.expiry_date)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Shipping tab
+    document.getElementById('shipping-info').innerHTML = [
+      ['Shipment Reference', shipment.shipment_ref],
+      ['Vessel Name', shipment.vessel_name],
+      ['Container Number', shipment.container_number],
+      ['Bill of Lading', shipment.bill_of_lading],
+      ['Port of Export', shipment.port_of_export],
+      ['Port of Import', shipment.port_of_import],
+      ['Incoterms', shipment.incoterms],
+      ['ETD', fmtDate(shipment.etd)],
+      ['ETA', fmtDate(shipment.eta)],
+      ['Status', shipment.status],
+      ['Notes', shipment.notes],
+    ].filter(([,v]) => v).map(([label, val]) => `
+      <div class="info-row">
+        <label>${label}</label>
+        <span>${val}</span>
+      </div>
+    `).join('');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+
+  } catch (err) {
+    document.getElementById('loading').innerHTML = `<div style="padding:40px;text-align:center;color:#c0392b">Failed to load shipment.<br><small>${err.message}</small></div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

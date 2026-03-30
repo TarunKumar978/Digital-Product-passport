@@ -250,3 +250,65 @@ def batch_qr_info():
         })
 
     return ok({"results": results, "total": len(results)})
+
+# ── SHIPMENT QR ───────────────────────────────────────────────────────────────
+
+@qr_bp.route("/shipment/<int:sid>", methods=["GET"])
+def get_shipment_qr(sid):
+    shipment = fetch_one("SELECT * FROM shipments WHERE id = %s", (sid,))
+    if not shipment:
+        return not_found("Shipment")
+    url = f"{PASSPORT_BASE_URL}/dppfrontend/shipment.html?shipment_id={sid}"
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_H, box_size=12, border=4)
+    qr.add_data(url)
+    qr.make(fit=True)
+    try:
+        img = qr.make_image(image_factory=StyledPilImage, module_drawer=RoundedModuleDrawer())
+    except Exception:
+        img = qr.make_image(fill_color="#3b2a1a", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    png = buf.read()
+    ref = shipment.get("shipment_ref", str(sid))
+    download = request.args.get("download", "0") == "1"
+    headers = {"Cache-Control": "no-cache", "Content-Length": str(len(png))}
+    if download:
+        headers["Content-Disposition"] = f'attachment; filename="trustagg_shipment_{ref}.png"'
+    return Response(png, mimetype="image/png", headers=headers)
+
+
+@qr_bp.route("/shipment/<int:sid>/label", methods=["GET"])
+def get_shipment_label(sid):
+    shipment = fetch_one("SELECT * FROM shipments WHERE id = %s", (sid,))
+    if not shipment:
+        return not_found("Shipment")
+    total = fetch_one("SELECT COUNT(*) AS c FROM shipment_items WHERE shipment_id = %s", (sid,))["c"]
+    ref = shipment.get("shipment_ref", f"SHP-{sid}")
+    buyer = shipment.get("buyer_name", "")
+    country = shipment.get("buyer_country", "")
+    qr_url = f"{API_BASE_URL}/api/qr/shipment/{sid}"
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"/><title>Shipment Label</title>
+<style>
+@page {{size:80mm 80mm;margin:0}}
+*{{margin:0;padding:0;box-sizing:border-box}}
+body{{width:80mm;height:80mm;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:serif;background:white;padding:4mm}}
+.brand{{font-size:6pt;letter-spacing:.2em;text-transform:uppercase;color:#8b5e3c;margin-bottom:2mm}}
+.qr-wrap{{border:0.3mm solid #d4a574;border-radius:2mm;padding:2mm}}
+.qr-wrap img{{width:36mm;height:36mm;display:block}}
+.ref{{font-family:monospace;font-size:6pt;color:#3b2a1a;margin-top:2mm}}
+.buyer{{font-size:5.5pt;color:#8b7355;margin-top:1mm;text-align:center}}
+.count{{font-size:5pt;color:#c9973a;margin-top:1mm}}
+.trust-tag{{font-size:5pt;letter-spacing:.15em;text-transform:uppercase;color:#c9973a;margin-top:2mm}}
+@media print{{body{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}
+</style></head>
+<body>
+<div class="brand">TrustTag™ — Silasya Earth</div>
+<div class="qr-wrap"><img src="{qr_url}" alt="Scan"/></div>
+<div class="ref">{ref}</div>
+<div class="buyer">{buyer} · {country}</div>
+<div class="count">{total} Products · B2B Shipment</div>
+<div class="trust-tag">Scan for full compliance data</div>
+</body></html>"""
+    return Response(html, mimetype="text/html")
