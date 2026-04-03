@@ -4,95 +4,225 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>TrustTag™ — Shipment Passport</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=DM+Mono:wght@300;400&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
   :root {
-    --brown: #3b2a1a;
-    --gold: #c9973a;
-    --tan: #8b7355;
-    --cream: #faf7f2;
-    --border: #e8ddd0;
-    --green: #2d6a4f;
-    --light-green: #e8f5ee;
+    --brown: #3b2a1a; --gold: #c9973a; --tan: #8b7355;
+    --cream: #faf7f2; --border: #e8ddd0; --green: #2d6a4f;
+    --light-green: #e8f5ee; --clay: #8b5e3c; --sand: #d4a574;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--cream); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:var(--brown); min-height:100vh; }
+  body { background:var(--cream); font-family:'Outfit',sans-serif; color:var(--brown); min-height:100vh; }
 
   /* HEADER */
-  .header { background:var(--brown); color:white; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; }
-  .header-brand { font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:#d4a574; }
-  .header-title { font-size:16px; font-weight:600; }
-  .trust-badge { background:var(--gold); color:white; font-size:10px; padding:3px 8px; border-radius:20px; letter-spacing:.05em; }
+  .header {
+    background: var(--brown);
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .header-texture {
+    position:absolute; inset:0;
+    background-image: repeating-linear-gradient(45deg, transparent, transparent 8px, rgba(255,255,255,.015) 8px, rgba(255,255,255,.015) 16px),
+      radial-gradient(ellipse at 80% 20%, rgba(201,151,58,.18) 0%, transparent 60%);
+    pointer-events:none;
+  }
+  .header-inner {
+    position:relative; z-index:1;
+    padding: 20px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .header-left { display:flex; align-items:center; gap:14px; }
+  .brand-logo {
+    width:52px; height:52px; border-radius:10px;
+    background:rgba(255,255,255,.1);
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden; flex-shrink:0;
+    border:1px solid rgba(255,255,255,.15);
+  }
+  .brand-logo img { width:100%; height:100%; object-fit:cover; border-radius:10px; }
+  .brand-logo-fallback {
+    font-family:'Cormorant Garamond',serif;
+    font-size:1.1rem; font-weight:600; color:var(--sand); letter-spacing:.05em;
+  }
+  .header-text {}
+  .header-brand { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:rgba(212,165,116,.6); margin-bottom:2px; }
+  .header-title { font-family:'Cormorant Garamond',serif; font-size:1.4rem; font-weight:300; color:var(--sand); }
+  .trust-badge {
+    background:linear-gradient(135deg,var(--gold),var(--clay));
+    color:white; font-size:10px; font-weight:600;
+    padding:5px 12px; border-radius:20px; letter-spacing:.05em;
+  }
 
   /* HERO */
   .hero { background:white; border-bottom:1px solid var(--border); padding:20px; }
-  .shipment-ref { font-size:11px; color:var(--tan); letter-spacing:.1em; text-transform:uppercase; margin-bottom:4px; }
-  .shipment-title { font-size:22px; font-weight:700; color:var(--brown); margin-bottom:12px; }
-  .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .meta-item label { font-size:10px; color:var(--tan); text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:2px; }
+  .shipment-ref {
+    font-family:'DM Mono',monospace;
+    font-size:10px; color:var(--tan); letter-spacing:.15em;
+    text-transform:uppercase; margin-bottom:6px;
+  }
+  .shipment-title {
+    font-family:'Cormorant Garamond',serif;
+    font-size:1.8rem; font-weight:300; color:var(--brown); margin-bottom:16px;
+  }
+  .meta-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .meta-item {
+    background:var(--cream); border-radius:8px; padding:10px 12px;
+    border:1px solid var(--border);
+  }
+  .meta-item label {
+    font-family:'DM Mono',monospace;
+    font-size:9px; color:var(--tan); text-transform:uppercase;
+    letter-spacing:.1em; display:block; margin-bottom:4px;
+  }
   .meta-item span { font-size:13px; font-weight:500; color:var(--brown); }
 
   /* COMPLIANCE BANNER */
-  .compliance-banner { background:var(--light-green); border-left:3px solid var(--green); margin:16px; border-radius:8px; padding:12px 16px; display:flex; align-items:center; gap:10px; }
-  .compliance-icon { font-size:20px; }
-  .compliance-text { font-size:12px; color:var(--green); font-weight:600; }
+  .compliance-banner {
+    background:linear-gradient(135deg,#e8f5ee,#f0faf4);
+    border:1px solid rgba(45,106,79,.2);
+    margin:16px; border-radius:12px; padding:14px 16px;
+    display:flex; align-items:center; gap:12px;
+    box-shadow:0 2px 12px rgba(45,106,79,.08);
+  }
+  .compliance-icon { font-size:22px; }
+  .compliance-text { font-size:12px; color:var(--green); font-weight:600; letter-spacing:.02em; }
   .compliance-sub { font-size:11px; color:#4a9e71; margin-top:2px; }
 
   /* STATS */
-  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); margin:0 16px 16px; border-radius:10px; overflow:hidden; }
-  .stat { background:white; padding:14px 10px; text-align:center; }
-  .stat-number { font-size:22px; font-weight:700; color:var(--gold); }
-  .stat-label { font-size:10px; color:var(--tan); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+  .stats {
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:10px; margin:0 16px 16px; 
+  }
+  .stat {
+    background:white; border:1px solid var(--border);
+    border-radius:12px; padding:16px 10px; text-align:center;
+  }
+  .stat-number {
+    font-family:'Cormorant Garamond',serif;
+    font-size:1.8rem; font-weight:400; color:var(--gold); line-height:1;
+  }
+  .stat-label {
+    font-family:'DM Mono',monospace;
+    font-size:9px; color:var(--tan); text-transform:uppercase;
+    letter-spacing:.08em; margin-top:6px;
+  }
 
   /* TABS */
-  .tabs { display:flex; background:white; border-bottom:1px solid var(--border); overflow-x:auto; padding:0 16px; }
-  .tab { padding:12px 16px; font-size:12px; font-weight:600; color:var(--tan); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; }
+  .tabs { display:flex; background:white; border-bottom:1px solid var(--border); padding:0 16px; }
+  .tab {
+    padding:14px 16px; font-size:11px; font-weight:600;
+    letter-spacing:.06em; text-transform:uppercase;
+    color:var(--tan); border-bottom:2px solid transparent;
+    cursor:pointer; white-space:nowrap; transition:all .2s;
+  }
   .tab.active { color:var(--brown); border-bottom-color:var(--gold); }
 
   /* CONTENT */
   .tab-content { display:none; padding:16px; }
   .tab-content.active { display:block; }
 
-  /* PRODUCT LIST */
-  .product-card { background:white; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; }
-  .product-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
-  .product-name { font-size:14px; font-weight:600; color:var(--brown); }
-  .product-type { font-size:10px; background:#f0e8dc; color:var(--tan); padding:2px 8px; border-radius:20px; }
-  .product-meta { font-size:11px; color:var(--tan); margin-bottom:8px; }
-  .product-sgtin { font-size:10px; font-family:monospace; color:#aaa; }
-  .passport-link { font-size:11px; color:var(--gold); text-decoration:none; font-weight:600; }
+  /* PRODUCT CARDS */
+  .product-card {
+    background:white; border:1px solid var(--border);
+    border-radius:12px; padding:16px; margin-bottom:12px;
+    transition:box-shadow .2s;
+  }
+  .product-card:hover { box-shadow:0 4px 16px rgba(59,42,26,.08); }
+  .product-card-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+  .product-name { font-size:15px; font-weight:600; color:var(--brown); }
+  .product-type {
+    font-size:10px; background:#f0e8dc; color:var(--tan);
+    padding:3px 10px; border-radius:20px; font-weight:500;
+  }
+  .product-meta { font-size:11px; color:var(--tan); margin-bottom:8px; line-height:1.5; }
+  .product-sgtin { font-family:'DM Mono',monospace; font-size:9px; color:#bbb; margin-bottom:10px; }
+  .passport-link {
+    font-size:11px; color:var(--gold); text-decoration:none;
+    font-weight:600; letter-spacing:.03em;
+  }
 
   /* CERTIFICATES */
-  .cert-card { background:white; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:10px; display:flex; align-items:center; gap:12px; }
-  .cert-icon { width:36px; height:36px; background:var(--light-green); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
-  .cert-name { font-size:13px; font-weight:600; color:var(--brown); }
-  .cert-number { font-size:11px; color:var(--tan); margin-top:2px; }
-  .cert-expiry { font-size:10px; color:#aaa; margin-top:2px; }
+  .cert-card {
+    background:white; border:1px solid var(--border);
+    border-radius:12px; padding:16px; margin-bottom:10px;
+    display:flex; align-items:center; gap:14px;
+    transition:box-shadow .2s;
+  }
+  .cert-card:hover { box-shadow:0 4px 16px rgba(59,42,26,.06); }
+  .cert-icon {
+    width:42px; height:42px;
+    background:linear-gradient(135deg,var(--light-green),#d4eddf);
+    border-radius:10px; display:flex; align-items:center;
+    justify-content:center; font-size:18px; flex-shrink:0;
+  }
+  .cert-name { font-size:13px; font-weight:600; color:var(--brown); margin-bottom:2px; }
+  .cert-number { font-family:'DM Mono',monospace; font-size:10px; color:var(--tan); margin-bottom:2px; }
+  .cert-expiry { font-size:10px; color:#aaa; }
+  .cert-verified {
+    margin-left:auto; flex-shrink:0;
+    background:rgba(45,106,79,.1); border:1px solid rgba(45,106,79,.2);
+    color:var(--green); font-size:10px; font-weight:600;
+    padding:4px 10px; border-radius:20px; letter-spacing:.04em;
+  }
 
   /* SHIPPING INFO */
-  .info-row { background:white; border-radius:10px; padding:14px; margin-bottom:10px; }
-  .info-row label { font-size:10px; color:var(--tan); text-transform:uppercase; letter-spacing:.08em; display:block; margin-bottom:4px; }
+  .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .info-row {
+    background:white; border:1px solid var(--border);
+    border-radius:10px; padding:14px;
+  }
+  .info-row label {
+    font-family:'DM Mono',monospace;
+    font-size:9px; color:var(--tan); text-transform:uppercase;
+    letter-spacing:.1em; display:block; margin-bottom:5px;
+  }
   .info-row span { font-size:13px; color:var(--brown); font-weight:500; }
+  .info-row.full { grid-column:1/-1; }
 
   /* LOADING */
   .loading { text-align:center; padding:60px 20px; color:var(--tan); }
-  .spinner { width:32px; height:32px; border:3px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 12px; }
+  .spinner {
+    width:32px; height:32px; border:3px solid var(--border);
+    border-top-color:var(--gold); border-radius:50%;
+    animation:spin .8s linear infinite; margin:0 auto 12px;
+  }
   @keyframes spin { to { transform:rotate(360deg); } }
 
   /* EMPTY */
   .empty { text-align:center; padding:40px 20px; color:var(--tan); font-size:13px; }
 
   /* FOOTER */
-  .footer { text-align:center; padding:24px; font-size:10px; color:var(--tan); letter-spacing:.08em; text-transform:uppercase; }
+  .footer {
+    text-align:center; padding:28px 20px;
+    font-family:'Cormorant Garamond',serif;
+    font-size:.9rem; font-weight:300; letter-spacing:.15em;
+    text-transform:uppercase; color:var(--tan);
+    border-top:1px solid var(--border); margin-top:16px;
+  }
+  .footer-sub {
+    font-family:'DM Mono',monospace;
+    font-size:9px; color:var(--tan); opacity:.5;
+    letter-spacing:.08em; margin-top:4px;
+  }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div>
-    <div class="header-brand">TrustTag™ by Silasya Earth</div>
-    <div class="header-title">Shipment Passport</div>
+  <div class="header-texture"></div>
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="brand-logo" id="header-brand-logo">
+        <span class="brand-logo-fallback">SH</span>
+      </div>
+      <div class="header-text">
+        <div class="header-brand">TrustTag™ · Silasya Earth</div>
+        <div class="header-title">Shipment Passport</div>
+      </div>
+    </div>
+    <div class="trust-badge">B2B Verified</div>
   </div>
-  <div class="trust-badge">B2B Verified</div>
 </div>
 
 <div id="loading" class="loading">
@@ -151,8 +281,8 @@
       <div class="stat-label">Certificates</div>
     </div>
     <div class="stat">
-      <div class="stat-number" id="verified-pct">100%</div>
-      <div class="stat-label">Verified</div>
+      <div class="stat-number" id="verified-pct" style="font-size:14px;text-transform:capitalize;">—</div>
+      <div class="stat-label">Status</div>
     </div>
   </div>
 
@@ -176,11 +306,20 @@
 
 </div>
 
-<div class="footer">TrustTag™ · Powered by Silasya Earth · Authenticated Digital Product Passport</div>
+<div class="footer">
+  Shumitra · Silasya Earth
+  <div class="footer-sub">TrustTag™ · Authenticated Digital Product Passport · Powered by Blockchain</div>
+</div>
 
 <script>
-const API_BASE = 'https://YOUR-NGROK-URL'; // ← auto-patched by startup script
+const API_BASE = 'https://uncurable-gaynell-nonresilient.ngrok-free.dev'; // ← auto-patched by startup script
 
+function openShipCert(btn) {
+  const url = decodeURIComponent(btn.getAttribute('data-url'));
+  const w = window.open();
+  w.document.write('<iframe src="' + url + '" width="100%" height="100%" style="border:none;margin:0;padding:0;"></iframe>');
+  w.document.close();
+}
 function getParam(key) {
   return new URLSearchParams(window.location.search).get(key);
 }
@@ -226,6 +365,25 @@ async function load() {
 
     // Stats
     document.getElementById('total-products').textContent = items.length;
+    // Auto-calculate status from dates
+    function calcStatus(s) {
+      const now = new Date();
+      const etd = s.etd ? new Date(s.etd) : null;
+      const eta = s.eta ? new Date(s.eta) : null;
+      if (s.status === 'delivered' || s.status === 'cancelled' || s.status === 'customs_hold')
+        return { label: s.status.replace(/_/g,' '), color: s.status === 'delivered' ? '#2d6a4f' : '#c0392b' };
+      if (eta && now > eta)
+        return { label: 'Delivered', color: '#2d6a4f' };
+      if (etd && now >= etd && eta && now <= eta)
+        return { label: 'In Transit', color: '#c9973a' };
+      if (etd && now < etd)
+        return { label: 'Ready to Ship', color: '#3B6B8A' };
+      return { label: (s.status||'Draft').replace(/_/g,' '), color: '#8b7355' };
+    }
+    const st = calcStatus(shipment);
+    const stEl = document.getElementById('verified-pct');
+    stEl.textContent = st.label;
+    stEl.style.color = st.color;
 
     // Products tab
     if (items.length > 0) {
@@ -235,44 +393,54 @@ async function load() {
             <div class="product-name">${p.product_name || 'Product'}</div>
             <div class="product-type">${p.product_type || 'Garment'}</div>
           </div>
-          <div class="product-meta">Batch: ${p.batch_number || '—'} · Qty: ${p.quantity || 1}</div>
-          <div class="product-sgtin">${p.sgtin || ''}</div>
-          ${p.sgtin ? `<a class="passport-link" href="${API_BASE.replace('/api','')}/dppfrontend/silasyapassport.html?sgtin=${encodeURIComponent(p.sgtin)}" target="_blank">View Full Passport →</a>` : ''}
-        </div>
-      `).join('');
-    }
-
-    // Fetch certificates via compliance endpoint
-    const compRes = await fetch(`${API_BASE}/api/shipments/${sid}/compliance`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    });
-    const compJson = await compRes.json();
-
-    // Fetch global certs
-    const certRes = await fetch(`${API_BASE}/api/certs`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    });
-    const certJson = await certRes.json();
-    const certs = certJson?.data?.certificates || certJson?.data || [];
-
-    document.getElementById('total-certs').textContent = certs.length;
-
-    if (certs.length > 0) {
-      document.getElementById('certs-list').innerHTML = certs.map(c => `
-        <div class="cert-card">
-          <div class="cert-icon">🏅</div>
-          <div>
-            <div class="cert-name">${c.cert_type || 'Certificate'}</div>
-            <div class="cert-number">${c.cert_number || c.issuing_body || '—'}</div>
-            <div class="cert-expiry">Expires: ${fmtDate(c.expiry_date)}</div>
+          <div class="product-meta">
+            ${p.batch_number ? 'Batch: ' + p.batch_number + ' · ' : ''}Qty: ${p.quantity || 1}
+            ${p.cluster_name ? ' · ' + p.cluster_name : ''}
+          </div>
+          ${p.sgtin ? `<div class="product-sgtin">${p.sgtin}</div>` : ''}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+            <span style="font-size:10px;color:var(--green);font-weight:600;">✓ DPP Verified</span>
+            ${p.sgtin ? `<a class="passport-link" href="${window.location.origin}/dppfrontend/silasyapassport.html?sgtin=${encodeURIComponent(p.sgtin)}" target="_blank">View Passport →</a>` : ''}
           </div>
         </div>
       `).join('');
     }
 
+    // Fetch all certs from global API
+    const certIcons = {GOTS:'🌿',ESPR:'🇪🇺',UFLPA:'🇺🇸',SA8000:'👷',RSL:'⚗️','OEKO-TEX':'🔬',SMETA:'📊',FAIR_TRADE:'🤝',BCI:'🌾',UK_GREEN_CLAIMS:'🇬🇧',REACH:'⚗️'};
+    let allCerts = [];
+    try {
+      const certRes = await fetch(`${API_BASE}/api/certificates`, { headers: { 'ngrok-skip-browser-warning': 'true' } });
+      const certJson = await certRes.json();
+      allCerts = certJson?.data?.certificates || certJson?.certificates || [];
+      console.log('certs loaded:', allCerts.length);
+    } catch(e) { console.error('cert fetch error', e); }
+
+    document.getElementById('total-certs').textContent = allCerts.length;
+
+    if (allCerts.length > 0) {
+      document.getElementById('certs-list').innerHTML = allCerts.map(c => `
+        <div class="cert-card">
+          <div class="cert-icon">${certIcons[c.cert_type]||'📋'}</div>
+          <div style="flex:1;">
+            <div class="cert-name">${c.cert_type || 'Certificate'} <span style="font-size:10px;color:#8b7355;">${c.jurisdiction||''}</span></div>
+            <div class="cert-number">${c.issuing_body||''} ${c.cert_number ? '· #'+c.cert_number : ''}</div>
+            <div class="cert-expiry">${c.expiry_date ? 'Expires: '+fmtDate(c.expiry_date) : ''}</div>
+            ${c._product_name ? `<div style="font-size:10px;color:var(--tan);margin-top:2px;">📦 ${c._product_name}</div>` : ''}
+          </div>
+          <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+            <span style="color:#2d6a4f;font-weight:600;font-size:11px;">✓ Verified</span>
+            ${c.cert_url ? `<button data-url="${encodeURIComponent(c.cert_url)}" onclick="openShipCert(this)" style="background:var(--gold);color:white;border:none;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;">📄 View</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+    } else {
+      document.getElementById('certs-list').innerHTML = '<div class="empty">No certificates found for this shipment.</div>';
+    }
+
     // Shipping tab
-    document.getElementById('shipping-info').innerHTML = [
-      ['Shipment Reference', shipment.shipment_ref],
+    document.getElementById('shipping-info').innerHTML = '<div class="info-grid">' + [
+      ['Shipment Reference', shipment.shipment_ref, 'full'],
       ['Vessel Name', shipment.vessel_name],
       ['Container Number', shipment.container_number],
       ['Bill of Lading', shipment.bill_of_lading],
@@ -281,15 +449,26 @@ async function load() {
       ['Incoterms', shipment.incoterms],
       ['ETD', fmtDate(shipment.etd)],
       ['ETA', fmtDate(shipment.eta)],
-      ['Status', shipment.status],
+      ['Status', (shipment.status||'').replace(/_/g,' ')],
       ['Notes', shipment.notes],
-    ].filter(([,v]) => v).map(([label, val]) => `
-      <div class="info-row">
+    ].filter(([,v]) => v).map(([label, val, cls]) => `
+      <div class="info-row${cls?' '+cls:''}">
         <label>${label}</label>
         <span>${val}</span>
       </div>
-    `).join('');
+    `).join('') + '</div>';
 
+    // Load brand logo
+    const brandMap = { shumitra: 'shumitra_logo.jpeg', silasya: 'silasya_logo.jpeg' };
+    const bKey = (shipment.brand_id||'shumitra').toLowerCase();
+    const bFile = brandMap[bKey] || 'shumitra_logo.jpeg';
+    const logoEl = document.getElementById('header-brand-logo');
+    if (logoEl) {
+      const img = new Image();
+      img.src = `${API_BASE}/uploads/${bFile}`;
+      img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:10px;';
+      img.onload = () => { logoEl.innerHTML = ''; logoEl.appendChild(img); };
+    }
     document.getElementById('loading').style.display = 'none';
     document.getElementById('main').style.display = 'block';
 

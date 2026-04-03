@@ -1219,7 +1219,7 @@ async function loadPassport() {
               <div>
                 <div class="cert-name">${cfg.label}</div>
                 <div class="cert-sub">${meta || cfg.sub}</div>
-                ${c.cert_url ? `<a class="cert-link" href="${c.cert_url}" target="_blank" style="font-size:.68rem;color:var(--clay)">View certificate ↗</a>` : ''}
+                ${c.cert_url ? `<button onclick="openCertPDF('${c.id}', \`${c.cert_url}\`)" style="background:none;border:none;cursor:pointer;font-size:.68rem;color:var(--clay);text-decoration:underline;padding:0;">View certificate ↗</button>` : ''}
               </div>
             </div>
             <div class="cert-status">✓ Verified</div>
@@ -1252,6 +1252,30 @@ async function loadPassport() {
 }
 
 document.addEventListener('DOMContentLoaded', loadPassport);
+
+function openCertPDF(id, url) {
+  if (!url) return;
+  if (url.startsWith('data:')) {
+    const byteString = atob(url.split(',')[1]);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) ia[i] = byteString.charCodeAt(i);
+    const blob = new Blob([ab], {type: 'application/pdf'});
+    const blobUrl = URL.createObjectURL(blob);
+    let modal = document.getElementById('cert-pdf-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'cert-pdf-modal';
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+      modal.innerHTML = `<div style="width:90vw;height:90vh;display:flex;flex-direction:column;background:#fff;border-radius:12px;overflow:hidden;"><div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#3b2a1a;"><span style="color:#fff;font-size:13px;font-weight:600;">Certificate</span><button onclick="document.getElementById('cert-pdf-modal').remove()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button></div><iframe id="cert-pdf-frame" style="flex:1;border:none;width:100%;"></iframe></div>`;
+      document.body.appendChild(modal);
+    }
+    document.getElementById('cert-pdf-frame').src = blobUrl;
+    modal.style.display = 'flex';
+  } else {
+    window.open(url, '_blank');
+  }
+}
 </script>
 </body>
 </html>

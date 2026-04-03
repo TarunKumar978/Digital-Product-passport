@@ -239,6 +239,7 @@ tr:hover td{background:rgba(245,237,224,.4);}
   <button class="nav-item" onclick="nav('products',this)"><span class="nav-icon">📦</span>All Products</button>
   <button class="nav-item" onclick="nav('add-product',this)"><span class="nav-icon">➕</span>Add Product</button>
   <button class="nav-item" onclick="nav('compliance',this)"><span class="nav-icon">✅</span>Compliance Gaps</button>
+  <button class="nav-item" onclick="nav('certificates',this)"><span class="nav-icon">📜</span>Certificates</button>
 
   <div class="nav-group-label">Creative Chain</div>
   <button class="nav-item" onclick="nav('artists',this)"><span class="nav-icon">🎨</span>Artists</button>
@@ -356,7 +357,7 @@ tr:hover td{background:rgba(245,237,224,.4);}
         <div class="layer-panel active" id="lp-l1">
           <div class="form-grid">
             <div class="form-row"><label class="form-label">Product Name <span class="req">*</span></label><input class="form-input" id="pf-name" placeholder="Madhubani Block Print Kurta"/></div>
-            <div class="form-row"><label class="form-label">SGTIN <span class="req">*</span><span class="hint">GS1 format or your batch code</span></label><input class="form-input" id="pf-sgtin" placeholder="urn:epc:id:sgtin:0614141.107346.2017"/></div>
+            <div class="form-row"><label class="form-label">SGTIN <span class="hint">GS1 format or your batch code (not required for bulk shipments)</span></label><input class="form-input" id="pf-sgtin" placeholder="urn:epc:id:sgtin:0614141.107346.2017"/></div>
             <div class="form-row"><label class="form-label">Batch Number <span class="req">*</span></label><input class="form-input" id="pf-batch" placeholder="BATCH-402"/></div>
             <div class="form-row"><label class="form-label">Manufacturing Date <span class="req">*</span></label><input class="form-input" type="date" id="pf-mfg-date"/></div>
             <div class="form-row"><label class="form-label">Category</label><input class="form-input" id="pf-category" placeholder="Women Ethnic Wear"/></div>
@@ -596,7 +597,15 @@ tr:hover td{background:rgba(245,237,224,.4);}
               <div class="form-row"><label class="form-label">Issuing body</label><input class="form-input" id="cert-body" placeholder="Control Union Certifications"/></div>
               <div class="form-row"><label class="form-label">Issued date</label><input class="form-input" type="date" id="cert-issued"/></div>
               <div class="form-row"><label class="form-label">Expiry date</label><input class="form-input" type="date" id="cert-expiry"/></div>
-              <div class="form-row form-row-full"><label class="form-label">Certificate URL</label><input class="form-input" id="cert-url" placeholder="https://…"/></div>
+              <div class="form-row form-row-full">
+                <label class="form-label">Certificate URL / Upload</label>
+                <div style="display:flex;gap:.4rem;align-items:center;">
+                  <input class="form-input" id="cert-url" placeholder="https://… or upload from Drive below"/>
+                  <input type="file" id="cert-file-upload" accept=".pdf,.jpg,.png" style="display:none;" onchange="handleCertFileUpload(this)"/>
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('cert-file-upload').click()">📎 Upload</button>
+                </div>
+                <div id="cert-upload-status" style="font-size:.7rem;color:var(--muted);margin-top:.3rem;"></div>
+              </div>
             </div>
             <button class="btn btn-primary btn-sm" onclick="addCert()">Add certificate</button>
           </div>
@@ -736,6 +745,42 @@ tr:hover td{background:rgba(245,237,224,.4);}
           </div>
         </div>
 
+        <!-- L10: Shipment -->
+        <div class="layer-panel" id="lp-l10">
+          <div id="l10-content" style="display:block;">
+            <div class="form-section">Assign to Shipment</div>
+            <div class="form-hint" style="margin-bottom:1rem;">This product type will be added to the selected shipment with a quantity. Individual SGTINs are not tracked — this is for bulk B2B shipments (e.g. 1000 Dhotis in one container).</div>
+            <div class="form-grid">
+              <div class="form-row">
+                <label class="form-label">Shipment <span class="req">*</span></label>
+                <select class="form-select" id="l10-shipment-id">
+                  <option value="">— Select shipment —</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Quantity <span class="req">*</span></label>
+                <input class="form-input" type="number" id="l10-qty" placeholder="1000" min="1"/>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Product Type / Description</label>
+                <input class="form-input" id="l10-desc" placeholder="e.g. Handwoven Dhoti, Madhubani Kurta…"/>
+              </div>
+              <div class="form-row">
+                <label class="form-label">Unit</label>
+                <select class="form-select" id="l10-unit">
+                  <option value="pcs">Pieces</option>
+                  <option value="sets">Sets</option>
+                  <option value="kg">KG</option>
+                  <option value="boxes">Boxes</option>
+                </select>
+              </div>
+            </div>
+            <div id="l10-current" style="margin-bottom:1rem;font-size:.78rem;color:var(--muted);"></div>
+            <button class="btn btn-primary" onclick="saveLayer10()">Add to Shipment</button>
+            <span class="form-hint" style="margin-left:.6rem;" id="l10-status"></span>
+          </div>
+        </div>
+
       </div><!-- modal-body -->
     </div><!-- table-card -->
   </div><!-- page-add-product -->
@@ -748,6 +793,68 @@ tr:hover td{background:rgba(245,237,224,.4);}
         <thead><tr><th>Product</th><th>Brand</th><th>Completion</th><th>Missing layers</th><th>Actions</th></tr></thead>
         <tbody id="compliance-tbody"></tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- ── CERTIFICATES ── -->
+  <div class="page" id="page-certificates">
+    <div class="table-card">
+      <div class="table-head">
+        <span class="table-title">Certificates</span>
+        <button class="btn btn-primary btn-sm" onclick="openAddCertModal()">+ Add Certificate</button>
+      </div>
+      <table>
+        <thead><tr><th>Type</th><th>Product</th><th>Issuing Body</th><th>Cert #</th><th>Jurisdiction</th><th>Issued</th><th>Expiry</th><th>URL</th><th></th></tr></thead>
+        <tbody id="certs-page-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add Cert Modal -->
+  <div id="add-cert-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;align-items:center;justify-content:center;" onclick="if(event.target===this)this.style.display='none'">
+    <div style="background:white;border-radius:16px;padding:1.8rem;width:500px;max-width:95vw;max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+        <div style="font-weight:700;font-size:1rem;">Add Certificate</div>
+        <button onclick="document.getElementById('add-cert-modal').style.display='none'" style="background:none;border:none;font-size:1.2rem;cursor:pointer;">✕</button>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label class="form-label">Product <span class="req">*</span></label>
+          <select class="form-select" id="acm-product"></select>
+        </div>
+        <div class="form-row"><label class="form-label">Certificate type <span class="req">*</span></label>
+          <select class="form-select" id="acm-type">
+            <option>GOTS</option><option>SA8000</option><option>SMETA</option><option>OEKO-TEX</option>
+            <option>ESPR</option><option>EU_GREEN_CLAIMS</option><option>UFLPA</option><option>US_CBP</option>
+            <option>UK_GREEN_CLAIMS</option><option>CMA</option><option>RSL</option><option>REACH</option>
+            <option>BLUESIGN</option><option>FAIR_TRADE</option><option>BCI</option><option>CUSTOM</option>
+          </select>
+        </div>
+        <div class="form-row"><label class="form-label">Jurisdiction</label>
+          <select class="form-select" id="acm-juris"><option>GLOBAL</option><option>EU</option><option>US</option><option>UK</option><option>INDIA</option></select>
+        </div>
+        <div class="form-row"><label class="form-label">Certificate number</label><input class="form-input" id="acm-number" placeholder="TC-2025-4821"/></div>
+        <div class="form-row"><label class="form-label">Issuing body</label><input class="form-input" id="acm-body" placeholder="Control Union Certifications"/></div>
+        <div class="form-row"><label class="form-label">Issued date</label><input class="form-input" type="date" id="acm-issued"/></div>
+        <div class="form-row"><label class="form-label">Expiry date</label><input class="form-input" type="date" id="acm-expiry"/></div>
+        <div class="form-row form-row-full">
+          <label class="form-label">Certificate URL / Upload</label>
+          <div style="display:flex;gap:.4rem;align-items:center;">
+            <input class="form-input" id="acm-url" placeholder="https://… or upload below"/>
+            <input type="file" id="acm-file" accept=".pdf,.jpg,.png" style="display:none;" onchange="handleAcmFileUpload(this)"/>
+            <button class="btn btn-ghost btn-sm" onclick="document.getElementById('acm-file').click()">📎 Upload</button>
+          </div>
+          <div id="acm-upload-status" style="font-size:.7rem;color:var(--muted);margin-top:.3rem;"></div>
+        </div>
+        <div class="form-row form-row-full">
+          <label class="form-label">Notes</label>
+          <input class="form-input" id="acm-notes" placeholder="Any additional notes…"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:1rem;">
+        <button class="btn btn-ghost" onclick="document.getElementById('add-cert-modal').style.display='none'">Cancel</button>
+        <button class="btn btn-primary" onclick="saveNewCert()">Save Certificate</button>
+      </div>
+      <div id="acm-status" style="font-size:.75rem;margin-top:.5rem;color:var(--success);"></div>
     </div>
   </div>
 
@@ -877,23 +984,52 @@ tr:hover td{background:rgba(245,237,224,.4);}
     <div class="table-card" style="max-width:620px;">
       <div class="table-head"><span class="table-title">New Shipment</span></div>
       <div class="modal-body">
+        <div class="form-section">Buyer Info</div>
         <div class="form-grid">
           <div class="form-row"><label class="form-label">Buyer name <span class="req">*</span></label><input class="form-input" id="sh-buyer" placeholder="ABC Imports GmbH"/></div>
-          <div class="form-row"><label class="form-label">Buyer country <span class="req">*</span><span class="hint">ISO 2-letter</span></label><input class="form-input" id="sh-country" placeholder="DE" maxlength="2"/></div>
+          <div class="form-row"><label class="form-label">Buyer country <span class="req">*</span></label><input class="form-input" id="sh-country" placeholder="India / United Kingdom / Germany"/></div>
           <div class="form-row"><label class="form-label">Company name</label><input class="form-input" id="sh-company" placeholder="ABC Holdings"/></div>
           <div class="form-row"><label class="form-label">Buyer email</label><input class="form-input" id="sh-email" placeholder="buyer@abc.de"/></div>
-          <div class="form-row"><label class="form-label">Incoterms</label>
-            <select class="form-select" id="sh-inco"><option value="">—</option><option>FOB</option><option>CIF</option><option>EXW</option><option>DDP</option><option>CFR</option></select>
-          </div>
+        </div>
+        <div class="form-section">Shipment Details</div>
+        <div class="form-grid">
           <div class="form-row"><label class="form-label">Brand</label>
             <select class="form-select" id="sh-brand"><option value="shumitra">Shumitra (B2B)</option><option value="silasya">Silasya</option></select>
           </div>
-          <div class="form-row"><label class="form-label">Port of export</label><input class="form-input" id="sh-port-exp" placeholder="JNPT Mumbai"/></div>
-          <div class="form-row"><label class="form-label">Port of import</label><input class="form-input" id="sh-port-imp" placeholder="Port of Rotterdam"/></div>
-          <div class="form-row"><label class="form-label">ETD (departure)</label><input class="form-input" type="date" id="sh-etd"/></div>
-          <div class="form-row"><label class="form-label">ETA (arrival)</label><input class="form-input" type="date" id="sh-eta"/></div>
+          <div class="form-row"><label class="form-label">Incoterms</label>
+            <select class="form-select" id="sh-inco"><option value="">—</option><option>FOB</option><option>CIF</option><option>EXW</option><option>DDP</option><option>CFR</option><option>CPT</option><option>DAP</option></select>
+          </div>
+          <div class="form-row"><label class="form-label">Total Quantity <span class="req">*</span></label><input class="form-input" type="number" id="sh-quantity" placeholder="1000" min="1"/></div>
+          <div class="form-row"><label class="form-label">Unit <span class="req">*</span></label>
+            <select class="form-select" id="sh-unit">
+              <option value="pieces">Pieces</option>
+              <option value="sets">Sets</option>
+              <option value="kg">KG</option>
+              <option value="tons">Tons</option>
+              <option value="boxes">Boxes</option>
+              <option value="cartons">Cartons</option>
+              <option value="bales">Bales</option>
+            </select>
+          </div>
+          <div class="form-row"><label class="form-label">No. of Containers</label><input class="form-input" type="number" id="sh-num-containers" placeholder="1" min="1"/></div>
+          <div class="form-row"><label class="form-label">Container type</label>
+            <select class="form-select" id="sh-container-type">
+              <option value="">—</option>
+              <option value="20ft">20ft Standard</option>
+              <option value="40ft">40ft Standard</option>
+              <option value="40hc">40ft High Cube</option>
+              <option value="lcl">LCL (Groupage)</option>
+              <option value="air">Air Freight</option>
+            </select>
+          </div>
           <div class="form-row"><label class="form-label">Container number</label><input class="form-input" id="sh-container" placeholder="MSCU1234567"/></div>
           <div class="form-row"><label class="form-label">Bill of lading</label><input class="form-input" id="sh-bol" placeholder="BOL-2025-001"/></div>
+          <div class="form-row"><label class="form-label">Port of export</label><input class="form-input" id="sh-port-exp" placeholder="JNPT Mumbai"/></div>
+          <div class="form-row"><label class="form-label">Port of import</label><input class="form-input" id="sh-port-imp" placeholder="Port of Rotterdam"/></div>
+          <div class="form-row"><label class="form-label">ETD (departure) <span class="req">*</span></label><input class="form-input" type="date" id="sh-etd"/></div>
+          <div class="form-row"><label class="form-label">ETA (arrival) <span class="req">*</span></label><input class="form-input" type="date" id="sh-eta"/></div>
+          <div class="form-row"><label class="form-label">Gross weight (kg)</label><input class="form-input" type="number" id="sh-weight" placeholder="5000" step="0.1"/></div>
+          <div class="form-row"><label class="form-label">Invoice value (USD)</label><input class="form-input" type="number" id="sh-invoice-value" placeholder="25000" step="0.01"/></div>
         </div>
         <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="sh-notes"></textarea></div>
         <div style="display:flex;gap:.6rem;margin-top:.5rem;">
@@ -1351,6 +1487,8 @@ const CREATIVE_GRAPH    = new AdjacencyListGraph(); // cluster→artist→produc
 //  STATE
 // ═══════════════════════════════════════════════════════════════════════════
 let TOKEN = localStorage.getItem('silasya_token') || '';
+const _certUrlStore = {};
+function viewCertById(id) { const url = _certUrlStore[id]; if (!url) { toast('No file attached','err'); return; } openBase64PDF(url); }
 let USER  = JSON.parse(localStorage.getItem('silasya_user') || '{}');
 
 // Current product being edited
@@ -1449,7 +1587,7 @@ const PAGE_TITLES = {
   compliance:'Compliance Gaps', artists:'Artists', 'add-artist':'Add Artist',
   designers:'Designers', manufacturers:'Manufacturers', clusters:'Clusters',
   shipments:'Shipments', 'add-shipment':'New Shipment',
-  scans:'Scan Logs', esg:'ESG Summary', users:'Users', 'qr-center':'QR Centre',
+  scans:'Scan Logs', esg:'ESG Summary', users:'Users', 'qr-center':'QR Centre', certificates:'Certificates',
 };
 
 function nav(id, btnEl) {
@@ -1462,7 +1600,7 @@ function nav(id, btnEl) {
   // Load data for page
   if (id === 'dashboard')    loadDashboard();
   if (id === 'products')     loadProducts();
-  if (id === 'add-product' && !CURRENT_PID)  resetProductForm();
+  if (id === 'add-product' && !CURRENT_PID) { resetProductForm(); }
   if (id === 'compliance')   loadCompliance();
   if (id === 'artists')       loadArtists();
   if (id === 'add-artist' && !CURRENT_ARTIST_ID)    resetArtistForm();
@@ -1474,6 +1612,7 @@ function nav(id, btnEl) {
   if (id === 'esg')          loadESG();
   if (id === 'users')        loadUsers();
   if (id === 'qr-center')    loadQRCentre();
+  if (id === 'certificates') loadCertificatesPage();
 }
 
 function goToLayer(id) {
@@ -1481,6 +1620,11 @@ function goToLayer(id) {
   if (btn) layerTab(id, btn);
 }
 function layerTab(id, btn) {
+  if (id === 'l10') {
+    loadShipmentsForL10();
+    const name = document.getElementById('pf-name');
+    if (name && name.value) document.getElementById('l10-desc').value = name.value;
+  }
   document.querySelectorAll('.layer-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.layer-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('lp-'+id).classList.add('active');
@@ -1674,7 +1818,8 @@ async function saveLayer1() {
     cluster_id:        document.getElementById('pf-cluster').value || undefined,
     description:       document.getElementById('pf-desc').value.trim(),
   };
-  if (!body.product_name || !body.sgtin || !body.batch_number || !body.manufacturing_date) {
+  const shipmentSelected = document.getElementById('l10-shipment-id')?.value;
+  if (!body.product_name || (!body.sgtin && !shipmentSelected) || !body.batch_number || !body.manufacturing_date) {
     toast('Fill in all required fields','err'); return;
   }
   try {
@@ -1688,7 +1833,21 @@ async function saveLayer1() {
       CURRENT_PID   = d.product_id;
       CURRENT_SGTIN = body.sgtin;
       document.getElementById('l1-status').textContent = '✓ Saved — ID: '+CURRENT_PID;
-      toast('Product created! Now fill the remaining layers.','ok'); setTimeout(()=>goToLayer('l2'),500);
+      toast('Product created! Now fill the remaining layers.','ok');
+      // Auto-submit shipment if pre-filled
+      const _sid = document.getElementById('l10-shipment-id')?.value;
+      const _qty = document.getElementById('l10-qty')?.value;
+      if (_sid && _qty) {
+        try {
+          await api('POST', `/api/shipments/${_sid}/products`, {
+            products: [{ product_id: CURRENT_PID, quantity: parseInt(_qty) }]
+          });
+          toast(`✓ Also added to shipment (${_qty} pcs)`,'ok');
+          document.getElementById('l10-status').textContent = '✓ Added to shipment';
+          document.getElementById('l10-status').style.color = 'var(--green)';
+        } catch(e) { console.warn('Shipment auto-assign failed', e); }
+      }
+      setTimeout(()=>goToLayer('l2'),800);
     }
     checkProductRequired();
   } catch(e) { toast(e.message, 'err'); }
@@ -2000,23 +2159,95 @@ async function loadLayer6() {
 async function loadCertsForProduct() {
   if (!CURRENT_PID) return;
   try {
-    const d = await api('GET', `/api/products/${CURRENT_PID}/certificates`);
-    CURRENT_CERTS = d.certificates || [];
+    const d = await api('GET', '/api/certificates');
+    const all = d.data?.certificates || d.certificates || [];
+    CURRENT_CERTS = all.filter(c => c.product_id === CURRENT_PID || !c.product_id);
     renderCertList();
   } catch(e) {}
 }
 
 function renderCertList() {
   const el = document.getElementById('cert-list');
-  if (CURRENT_CERTS.length === 0) { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted)">No certificates yet.</div>'; return; }
+  if (CURRENT_CERTS.length === 0) { el.innerHTML = '<div style="font-size:.78rem;color:var(--muted)">No certificates yet. Add below or from the Certificates section.</div>'; return; }
+  // Store URLs in memory
+  CURRENT_CERTS.forEach(cert => { if (cert.cert_url) _certUrlStore[cert.id] = cert.cert_url; });
   el.innerHTML = CURRENT_CERTS.map(c => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem .75rem;background:var(--bg);border-radius:8px;font-size:.78rem;">
       <div>
         <strong>${esc(c.cert_type)}</strong> · ${esc(c.issuing_body||'')} · <span class="td-mono">#${esc(c.cert_number||'')}</span>
         <span class="badge ${c.is_expired?'badge-red':'badge-green'}" style="margin-left:.4rem">${c.is_expired?'Expired':'Active'}</span>
+        ${c.cert_url ? `<button onclick="viewCertById(${c.id})" style="background:none;border:none;cursor:pointer;margin-left:.4rem;font-size:.7rem;color:var(--gold);">📄 View</button>` : ''}
       </div>
-      <button class="btn btn-danger btn-sm" onclick="deleteCert(${c.id})">✕</button>
+      <button title="Remove from this product" style="background:none;border:1px solid var(--danger);color:var(--danger);border-radius:4px;padding:2px 6px;cursor:pointer;font-size:.75rem;" onclick="removeCertFromProduct(${c.id})">✕</button>
     </div>`).join('');
+}
+
+// Remove cert association from product (does NOT delete from DB)
+async function removeCertFromProduct(cid) {
+  if (!CURRENT_PID || !confirm('Remove this certificate from this product?')) return;
+  try {
+    await api('DELETE', `/api/products/${CURRENT_PID}/certificates/${cid}`);
+    loadCertsForProduct();
+    toast('Removed from product','ok');
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function deleteShipCert(sid, cid, btn) {
+  if (!confirm('Remove this certificate?')) return;
+  try {
+    // Find product_id from the cert — need to get it from the DOM or re-fetch
+    const row = btn.closest('div[style*="border-bottom"]');
+    await api('DELETE', `/api/products/0/certificates/${cid}`).catch(async () => {
+      // Try to find correct product
+      const d = await api('GET', `/api/shipments/${sid}`);
+      const items = d.items || [];
+      for (const p of items) {
+        try { await api('DELETE', `/api/products/${p.product_id}/certificates/${cid}`); break; } catch(e) {}
+      }
+    });
+    if (row) row.remove();
+    toast('Certificate removed','ok');
+  } catch(e) { toast('Removed','ok'); btn.closest('div[style*="border-bottom"]')?.remove(); }
+}
+
+function openCertUrl(btn) {
+  const url = btn.getAttribute('data-url');
+  if (url) openBase64PDF(url);
+}
+
+function handleShipCertUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('ship-cert-upload-status');
+  status.textContent = 'Reading file…';
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('ship-cert-url').value = reader.result;
+    status.textContent = '✓ ' + file.name + ' ready';
+    status.style.color = 'var(--green)';
+  };
+  reader.onerror = () => { status.textContent = '✗ Could not read file'; };
+  reader.readAsDataURL(file);
+}
+
+function handleCertFileUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('cert-upload-status');
+  const urlInput = document.getElementById('cert-url');
+  status.textContent = 'Reading file…';
+
+  // If user has a Google Drive link copied, remind them to paste it
+  // Otherwise convert to object URL for preview
+  const reader = new FileReader();
+  reader.onload = () => {
+    // Store as data URL — works for PDFs and images
+    urlInput.value = reader.result;
+    status.textContent = `✓ ${file.name} ready to save with certificate`;
+    status.style.color = 'var(--green)';
+  };
+  reader.onerror = () => { status.textContent = '✗ Could not read file'; };
+  reader.readAsDataURL(file);
 }
 
 async function addCert() {
@@ -2030,13 +2261,19 @@ async function addCert() {
     expiry_date:  document.getElementById('cert-expiry').value || undefined,
     cert_url:     document.getElementById('cert-url').value.trim() || undefined,
   };
-  try { await api('POST', `/api/products/${CURRENT_PID}/certificates`, body); toast('Certificate added','ok'); loadCertsForProduct(); ['cert-number','cert-body','cert-issued','cert-expiry','cert-url'].forEach(id => document.getElementById(id).value=''); }
+  try {
+    body.product_id = CURRENT_PID;
+    await api('POST', '/api/certificates', body);
+    toast('Certificate added','ok');
+    loadCertsForProduct();
+    ['cert-number','cert-body','cert-issued','cert-expiry','cert-url'].forEach(id => document.getElementById(id).value='');
+  }
   catch(e) { toast(e.message,'err'); }
 }
 
 async function deleteCert(cid) {
   if (!CURRENT_PID || !confirm('Remove this certificate?')) return;
-  try { await api('DELETE', `/api/products/${CURRENT_PID}/certificates/${cid}`); loadCertsForProduct(); toast('Removed','ok'); }
+  try { await api('DELETE', `/api/certificates/${cid}`); loadCertsForProduct(); toast('Removed','ok'); }
   catch(e) { toast(e.message,'err'); }
 }
 
@@ -2190,6 +2427,50 @@ function sharePassportWhatsApp() {
   const text = encodeURIComponent('Check out this verified Digital Product Passport: ' + gs1);
   window.open('https://wa.me/?text=' + text, '_blank');
 }
+// ── LAYER 10: SHIPMENT ────────────────────────────────────────────────────
+async function loadShipmentsForL10() {
+  try {
+    const d = await api('GET', '/api/shipments');
+    const sel = document.getElementById('l10-shipment-id');
+    const shipments = d.data || d.shipments || [];
+    sel.innerHTML = '<option value="">— Select shipment —</option>' +
+      shipments.map(s => `<option value="${s.id}">${s.shipment_ref} — ${s.buyer_name||''} (${s.buyer_country||''})</option>`).join('');
+  } catch(e) { console.warn('Could not load shipments for L10', e); }
+}
+
+async function saveLayer10() {
+  const sid = document.getElementById('l10-shipment-id').value;
+  const qty = document.getElementById('l10-qty').value;
+  const desc = document.getElementById('l10-desc').value;
+  const unit = document.getElementById('l10-unit').value;
+  const status = document.getElementById('l10-status');
+
+  if (!sid) { status.textContent = '⚠ Select a shipment'; return; }
+  if (!qty || qty < 1) { status.textContent = '⚠ Enter a valid quantity'; return; }
+  status.textContent = 'Saving…';
+  try {
+    if (!CURRENT_PID) {
+      // Store for later — will auto-submit after Layer 1 saves
+      status.style.color = 'var(--gold)';
+      status.textContent = '⏳ Will be added to shipment after you save Layer 1';
+      return;
+    }
+    await api('POST', `/api/shipments/${sid}/products`, {
+      products: [{ product_id: CURRENT_PID, quantity: parseInt(qty) }]
+    });
+    status.style.color = 'var(--green)';
+    status.textContent = `✓ Added ${qty} ${unit} to shipment`;
+
+    // Show current assignment
+    const sel = document.getElementById('l10-shipment-id');
+    const name = sel.options[sel.selectedIndex].text;
+    document.getElementById('l10-current').textContent = `Currently assigned: ${name} — ${qty} ${unit}`;
+  } catch(e) {
+    status.style.color = 'var(--warn)';
+    status.textContent = '✗ ' + (e.message || 'Failed to add');
+  }
+}
+
 function copyPassportLink() {
   if (!CURRENT_SGTIN) return;
   const url = `${PASSPORT_URL}/silasyapassport.html?sgtin=${encodeURIComponent(CURRENT_SGTIN)}`;
@@ -2608,6 +2889,7 @@ async function loadShipments() {
           <td style="font-size:.72rem">${s.eta ? fmtDate(s.eta) : '—'}</td>
           <td style="white-space:nowrap">
             <button class="btn btn-ghost btn-sm" onclick="viewShipment(${s.id})">View</button>
+            <button class="btn btn-primary btn-sm" onclick="showShipmentQR(${s.id}, '${esc(s.destination||'')}')">📦 QR</button>
             <button class="btn btn-info btn-sm" onclick="downloadCompliance(${s.id})">Download</button>
           </td>
         </tr>`).join('');
@@ -2670,9 +2952,15 @@ async function viewShipment(sid) {
             <div style="font-size:.7rem;color:var(--text-muted)">Compliance</div>
           </div>
           <div style="background:var(--bg);border-radius:8px;padding:.7rem;text-align:center;">
-            <div style="font-size:1.2rem;font-weight:700;color:var(--text-primary)">${s.status || 'DRAFT'}</div>
-            <div style="font-size:.7rem;color:var(--text-muted)">Status</div>
+            <div style="font-size:1rem;font-weight:700;color:var(--text-primary);text-transform:capitalize;">${(s.status||'draft').replace(/_/g,' ')}</div>
+            <div style="font-size:.7rem;color:var(--text-muted)">Auto-updated by ETD/ETA</div>
           </div>
+        </div>
+
+        <!-- Certificates from DB -->
+        <div style="background:var(--bg);border-radius:10px;padding:1rem;margin-bottom:1rem;">
+          <div style="font-size:.78rem;font-weight:600;margin-bottom:.6rem;">📋 Certificates</div>
+          <div id="shipment-certs-list" style="font-size:.75rem;color:var(--text-muted);">Loading…</div>
         </div>
 
         <!-- Add Products -->
@@ -2724,14 +3012,175 @@ async function viewShipment(sid) {
         sel.appendChild(opt);
       });
     } catch(e) {}
+
+    // Load certificates directly from each product in shipment
+    async function loadShipmentCerts(productList) {
+      const certIcons = { GOTS:'🌿', ESPR:'🇪🇺', UFLPA:'🇺🇸', SA8000:'👷', RSL:'⚗️', UK_GREEN_CLAIMS:'🇬🇧', 'OEKO-TEX':'🔬', SMETA:'📊', FAIR_TRADE:'🤝', BCI:'🌾' };
+      const certsEl = document.getElementById('shipment-certs-list');
+      if (!certsEl) return;
+      certsEl.innerHTML = '<div style="color:var(--text-muted)">Loading…</div>';
+      let allCerts = [];
+      try {
+        const cd = await api('GET', '/api/certificates');
+        allCerts = cd.data?.certificates || cd.certificates || [];
+      } catch(e) {}
+      if (allCerts.length > 0) {
+        certsEl.innerHTML = allCerts.map(c => `
+          <div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border);">
+            <span style="font-size:1rem;">${certIcons[c.cert_type] || '📋'}</span>
+            <div style="flex:1;">
+              <span style="font-weight:600;font-size:.8rem;">${esc(c.cert_type)}</span>
+              <span style="color:var(--text-muted);font-size:.72rem;margin-left:.4rem;">${esc(c.issuing_body||'')}${c.cert_number ? ' · #'+esc(c.cert_number) : ''}</span>
+              ${c.expiry_date ? `<span style="font-size:.68rem;color:var(--warn);margin-left:.4rem;">Exp: ${c.expiry_date}</span>` : ''}
+              <span style="font-size:.65rem;color:var(--text-muted);margin-left:.4rem;">— ${esc(c._product_name||'')}</span>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center;">
+              ${c.cert_url ? `<button onclick="viewCertById(${c.id})" style="background:none;border:none;cursor:pointer;font-size:.7rem;color:var(--gold);padding:0;">📄 View</button>` : ''}
+              <span style="color:var(--success);font-weight:600;font-size:.75rem;">✓</span>
+              <button onclick="deleteShipCert(${sid}, ${c.id}, this)" style="background:none;border:none;cursor:pointer;color:var(--danger);font-size:.8rem;padding:0 .2rem;">✕</button>
+            </div>
+          </div>`).join('');
+      } else {
+        certsEl.innerHTML = `
+          <div style="color:var(--text-muted);font-size:.75rem;margin-bottom:.6rem;">No certificates found. Add one below.</div>`;
+      }
+
+      // Add cert form below the list
+      const certsSection = certsEl.closest('div[style*="background"]') || certsEl.parentElement;
+      let addCertForm = document.getElementById('ship-add-cert-form');
+      if (!addCertForm) {
+        addCertForm = document.createElement('div');
+        addCertForm.id = 'ship-add-cert-form';
+        addCertForm.style.cssText = 'margin-top:.8rem;padding-top:.8rem;border-top:1px solid var(--border);';
+        addCertForm.innerHTML = `
+          <div style="font-size:.72rem;font-weight:600;margin-bottom:.5rem;">+ Add Certificate</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.4rem;">
+            <select id="ship-cert-product" class="form-select" style="font-size:.75rem;display:none;">
+              ${productList.map(p => `<option value="${p.product_id||p.id}">${esc(p.product_name)}</option>`).join('')}
+            </select>
+            <div>
+              <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;font-weight:600;">Certificate Type</div>
+              <select id="ship-cert-type" class="form-select" style="font-size:.75rem;">
+                <option>GOTS</option><option>SA8000</option><option>SMETA</option><option>OEKO-TEX</option>
+                <option>ESPR</option><option>UFLPA</option><option>UK_GREEN_CLAIMS</option>
+                <option>RSL</option><option>REACH</option><option>FAIR_TRADE</option><option>BCI</option><option>CUSTOM</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;font-weight:600;">Jurisdiction</div>
+              <select id="ship-cert-juris" class="form-select" style="font-size:.75rem;">
+                <option value="GLOBAL">GLOBAL</option><option value="EU">EU</option>
+                <option value="US">US</option><option value="UK">UK</option><option value="INDIA">INDIA</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;font-weight:600;">Certificate Number</div>
+              <input class="form-input" id="ship-cert-number" placeholder="TC-2025-4821" style="font-size:.75rem;"/>
+            </div>
+            <div>
+              <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;font-weight:600;">Issuing Body</div>
+              <input class="form-input" id="ship-cert-body" placeholder="Control Union Certifications" style="font-size:.75rem;"/>
+            </div>
+            <div>
+              <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;font-weight:600;">Issued Date</div>
+              <input class="form-input" id="ship-cert-issued" type="date" style="font-size:.75rem;"/>
+            </div>
+            <div>
+              <div style="font-size:.68rem;color:var(--muted);margin-bottom:.2rem;font-weight:600;">Expiry Date</div>
+              <input class="form-input" id="ship-cert-expiry" type="date" style="font-size:.75rem;"/>
+            </div>
+            <div style="display:flex;gap:.3rem;align-items:center;grid-column:span 2;">
+              <input class="form-input" id="ship-cert-url" placeholder="Certificate URL or upload below" style="font-size:.75rem;flex:1;"/>
+              <input type="file" id="ship-cert-file" accept=".pdf,.jpg,.png" style="display:none;" onchange="handleShipCertUpload(this)"/>
+              <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ship-cert-file').click()">📎 Upload</button>
+            </div>
+            <div id="ship-cert-upload-status" style="font-size:.7rem;color:var(--muted);grid-column:span 2;"></div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addShipmentCertFromModal(${sid})">Add Certificate</button>
+          <span id="ship-cert-status" style="font-size:.72rem;margin-left:.5rem;color:var(--success);"></span>`;
+        certsEl.after(addCertForm);
+      }
+    }
+    loadShipmentCerts(products);
     
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function addShipmentCertFromModal(sid) {
+  // Auto-select first product if hidden select has options
+  const productSel = document.getElementById('ship-cert-product');
+  const pid = productSel.value || (productSel.options[0] && productSel.options[0].value);
+  if (!pid) { toast('No products in shipment','err'); return; }
+  const body = {
+    cert_type:    document.getElementById('ship-cert-type').value,
+    cert_number:  document.getElementById('ship-cert-number').value || undefined,
+    issuing_body: document.getElementById('ship-cert-body').value || undefined,
+    issued_date:  document.getElementById('ship-cert-issued').value || undefined,
+    expiry_date:  document.getElementById('ship-cert-expiry').value || undefined,
+    cert_url:     document.getElementById('ship-cert-url').value || undefined,
+    jurisdiction: document.getElementById('ship-cert-juris').value || 'GLOBAL',
+  };
+  try {
+    body.product_id = null;
+    await api('POST', '/api/certificates', body);
+    toast('Certificate added ✓','ok');
+    document.getElementById('ship-cert-status').textContent = '✓ Saved';
+    ['ship-cert-number','ship-cert-body','ship-cert-issued','ship-cert-expiry','ship-cert-url'].forEach(id => document.getElementById(id).value = '');
+    const certsEl = document.getElementById('shipment-certs-list');
+    if (certsEl) {
+      certsEl.innerHTML = '<div style="color:var(--text-muted)">Refreshing…</div>';
+      let allCerts = [];
+      try {
+        const cd = await api('GET', '/api/certificates');
+        allCerts = cd.data?.certificates || cd.certificates || [];
+      } catch(e) {}
+      const certIcons = {GOTS:'🌿',ESPR:'🇪🇺',UFLPA:'🇺🇸',SA8000:'👷',RSL:'⚗️','OEKO-TEX':'🔬',SMETA:'📊',FAIR_TRADE:'🤝',BCI:'🌾'};
+      certsEl.innerHTML = allCerts.length === 0
+        ? '<div style="color:var(--text-muted)">No certificates yet.</div>'
+        : allCerts.map(c=>`<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem 0;border-bottom:1px solid var(--border);">
+            <span>${certIcons[c.cert_type]||'📋'}</span>
+            <span style="font-weight:600">${c.cert_type}</span>
+            <span style="color:var(--text-muted);font-size:.7rem;">— ${c._product_name||''}</span>
+            <span style="margin-left:auto;color:var(--success);font-weight:600;font-size:.75rem;">✓ Verified</span>
+          </div>`).join('');
+    }
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function updateShipmentStatus(sid, status) {
+  try {
+    await api('PUT', `/api/shipments/${sid}`, { status });
+    toast('Status updated to ' + status.replace(/_/g,' '), 'ok');
+    loadShipments();
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function addShipmentCert(sid, reloadFn, productList) {
+  const pid = document.getElementById('ship-cert-product').value;
+  const certType = document.getElementById('ship-cert-type').value;
+  if (!pid) { toast('Select a product first','err'); return; }
+  const body = {
+    cert_type:    certType,
+    cert_number:  document.getElementById('ship-cert-number').value,
+    issuing_body: document.getElementById('ship-cert-body').value,
+    expiry_date:  document.getElementById('ship-cert-expiry').value || null,
+    cert_url:     document.getElementById('ship-cert-url').value || null,
+    jurisdiction: 'GLOBAL',
+  };
+  try {
+    if (pid) body.product_id = parseInt(pid);
+    await api('POST', '/api/certificates', body);
+    toast('Certificate added ✓','ok');
+    document.getElementById('ship-cert-status').textContent = '✓ Saved';
+    ['ship-cert-number','ship-cert-body','ship-cert-expiry','ship-cert-url'].forEach(id => document.getElementById(id).value = '');
+    if (reloadFn) reloadFn(productList);
   } catch(e) { toast(e.message,'err'); }
 }
 
 async function addProductToShipment(sid) {
   const pid = document.getElementById('ship-product-select').value;
   const qty = parseInt(document.getElementById('ship-qty').value) || 1;
-  if (!pid) { toast('Select a product','err'); return; }
+  // product is optional
   try {
     await api('POST', `/api/shipments/${sid}/products`, { products: [{ product_id: parseInt(pid), quantity: qty }] });
     toast('Product added','ok');
@@ -2747,6 +3196,121 @@ async function removeProductFromShipment(sid, pid, btn) {
     btn.closest('div[style]').remove();
     toast('Product removed','ok');
   } catch(e) { toast(e.message,'err'); }
+}
+
+
+async function downloadShipmentQR(sid) {
+  window.open(API + '/api/qr/shipment/' + sid + '?download=1');
+}
+
+async function shareShipmentQR(sid) {
+  const url = API + '/api/qr/shipment/' + sid;
+  if (navigator.share) {
+    await navigator.share({ title: 'Shipment QR', url });
+  } else {
+    await navigator.clipboard.writeText(url);
+    toast('QR URL copied to clipboard', 'ok');
+  }
+}
+
+async function copyShipmentQR(sid) {
+  const url = API + '/api/qr/shipment/' + sid;
+  await navigator.clipboard.writeText(url);
+  toast('QR URL copied!', 'ok');
+}
+
+
+let _shipmentQRSid = null;
+let _shipmentQRUrl = null;
+
+async function showShipmentQR(sid, name) {
+  _shipmentQRSid = sid;
+  _shipmentQRUrl = PASSPORT_URL + '/shipment.html?shipment_id=' + sid;
+
+  // Fetch full shipment details
+  try {
+    const d = await api('GET', `/api/shipments/${sid}`);
+    const s = d.shipment || {};
+    const items = d.items || [];
+    document.getElementById('shipment-qr-name').textContent = s.shipment_ref || name || 'Shipment #' + sid;
+    document.getElementById('shipment-qr-id').textContent =
+      [s.buyer_name, s.buyer_country].filter(Boolean).join(' · ') || ('ID: ' + sid);
+
+    // Inject product list below QR if container exists
+    let infoEl = document.getElementById('shipment-qr-info');
+    if (!infoEl) {
+      infoEl = document.createElement('div');
+      infoEl.id = 'shipment-qr-info';
+      infoEl.style.cssText = 'margin-top:.8rem;width:100%;max-width:340px;font-size:.75rem;';
+      document.getElementById('shipment-qr-wrap').after(infoEl);
+    }
+    const rows = items.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem .5rem;border-bottom:1px solid rgba(59,42,26,.07);">
+        <div>
+          <div style="font-weight:600;color:#3b2a1a;">${esc(p.product_name||'—')}</div>
+          <div style="color:#8b7355;font-size:.68rem;">${esc(p.sgtin||'')} · Batch ${esc(p.batch_number||'—')}</div>
+        </div>
+        <div style="color:#c9973a;font-weight:600;">×${p.quantity||1}</div>
+      </div>`).join('');
+    infoEl.innerHTML = items.length ? `
+      <div style="font-size:.65rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#8b7355;margin-bottom:.4rem;">
+        ${items.length} Product${items.length>1?'s':''} in shipment
+      </div>
+      <div style="border:1px solid rgba(59,42,26,.1);border-radius:8px;overflow:hidden;">${rows}</div>
+      ${s.incoterms ? `<div style="margin-top:.5rem;color:#8b7355;">Incoterms: <b>${esc(s.incoterms)}</b></div>` : ''}
+      ${s.eta ? `<div style="color:#8b7355;">ETA: <b>${esc(s.eta)}</b></div>` : ''}
+    ` : '<div style="color:#8b7355;font-size:.72rem;">No products added to this shipment yet.</div>';
+  } catch(e) {
+    document.getElementById('shipment-qr-name').textContent = name || 'Shipment #' + sid;
+    document.getElementById('shipment-qr-id').textContent = 'ID: ' + sid;
+  }
+
+  const canvas = document.getElementById('shipment-qr-canvas');
+  canvas.innerHTML = '';
+  const qrImg = document.createElement('img');
+  qrImg.src = API + '/api/qr/shipment/' + sid;
+  qrImg.style.cssText = 'width:200px;height:200px;display:block;margin:0 auto;';
+  canvas.appendChild(qrImg);
+  qrImg.onload = () => {
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = 200; finalCanvas.height = 200;
+    finalCanvas.style.cssText = 'display:block;margin:0 auto;border-radius:8px;';
+    const ctx = finalCanvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 200, 200);
+    ctx.drawImage(qrImg, 10, 10, 180, 180);
+    const logo = new Image();
+    logo.onload = () => {
+      const size = 56, cx = 100, cy = 100;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx, cy, size/2 + 8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, size/2, 0, Math.PI*2);
+      ctx.clip();
+      ctx.drawImage(logo, cx-size/2, cy-size/2, size, size);
+      ctx.restore();
+      qrImg.style.display = 'none';
+      canvas.appendChild(finalCanvas);
+    };
+    logo.src = LOGO_SHUMITRA;
+  };
+  openModal('shipment-qr-modal');
+}
+
+function downloadShipmentQR() {
+  window.open(API + '/api/qr/shipment/' + _shipmentQRSid + '?download=1');
+}
+
+async function copyShipmentLink() {
+  await navigator.clipboard.writeText(_shipmentQRUrl);
+  toast('Link copied!', 'ok');
+}
+
+function shareShipmentWhatsApp() {
+  window.open('https://wa.me/?text=' + encodeURIComponent(_shipmentQRUrl));
 }
 
 async function downloadCompliance(sid) {
@@ -3051,6 +3615,29 @@ function resetProductForm() {
   document.getElementById('lp-l1').classList.add('active');
 }
 </script>
+
+<!-- SHIPMENT QR MODAL -->
+<div class="modal-overlay" id="shipment-qr-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Shipment QR Code</span>
+      <button class="modal-close" onclick="closeModal('shipment-qr-modal')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="qr-preview-wrap" id="shipment-qr-wrap">
+        <div class="qr-box" id="shipment-qr-canvas"></div>
+        <div class="qr-product-name" id="shipment-qr-name">—</div>
+        <div class="qr-sgtin" id="shipment-qr-id">—</div>
+      </div>
+      <div style="display:flex;gap:.6rem;justify-content:center;margin-top:1rem;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="downloadShipmentQR()">↓ Download PNG</button>
+        <button class="btn btn-ghost" onclick="copyShipmentLink()">🔗 Copy Passport URL</button>
+        <button class="btn btn-ghost" onclick="shareShipmentWhatsApp()" style="background:#25D366;color:white;border:none;">💬 WhatsApp</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html><script>
 function handlePhotoUpload(input, targetId) {
@@ -3156,5 +3743,120 @@ async function loadManufacturingRecords() {
     if (story.manufacturing_country) document.getElementById('l3-mfg-country').value = story.manufacturing_country || '';
     document.getElementById('l3-status').textContent = '✓ Previous data loaded';
   } catch(e) { console.error(e); }
+}
+
+async function loadCertificatesPage() {
+  const tbody = document.getElementById('certs-page-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">Loading…</td></tr>';
+  try {
+    const cd = await api('GET', '/api/certificates');
+    let allCerts = (cd.data?.certificates || cd.certificates || []).map(c => {
+      c._product_name = c.product_name || '—';
+      c._product_id = c.product_id;
+      return c;
+    });
+    if (allCerts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:2rem;">No certificates yet.</td></tr>';
+      return;
+    }
+    const certIcons = {GOTS:'🌿',ESPR:'🇪🇺',UFLPA:'🇺🇸',SA8000:'👷',RSL:'⚗️','OEKO-TEX':'🔬',UK_GREEN_CLAIMS:'🇬🇧',SMETA:'📊',FAIR_TRADE:'🤝',BCI:'🌾'};
+    // Store cert URLs in memory
+    allCerts.forEach(cert => { if (cert.cert_url) _certUrlStore[cert.id] = cert.cert_url; });
+    tbody.innerHTML = allCerts.map(cert => `
+      <tr>
+        <td><span>${certIcons[cert.cert_type]||'📋'}</span> <strong>${cert.cert_type}</strong></td>
+        <td style="font-size:.78rem;">${cert._product_name||'—'}</td>
+        <td style="font-size:.78rem;">${cert.issuing_body||'—'}</td>
+        <td style="font-family:monospace;font-size:.75rem;">${cert.cert_number||'—'}</td>
+        <td style="font-size:.75rem;">${cert.jurisdiction||'—'}</td>
+        <td style="font-size:.75rem;">${cert.issued_date||'—'}</td>
+        <td style="font-size:.75rem;color:${cert.expiry_date && new Date(cert.expiry_date)<new Date(Date.now()+30*86400000)?'var(--danger)':'inherit'}">${cert.expiry_date||'—'}</td>
+        <td>${cert.cert_url ? `<button onclick="viewCertById(${cert.id})" style="background:none;border:none;cursor:pointer;font-size:.72rem;color:var(--gold);">📄 View</button>` : '—'}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteCertFromPage(${cert._product_id},${cert.id},this)">✕</button></td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--danger);padding:1rem;">${e.message}</td></tr>`;
+  }
+}
+
+async function handleAcmFileUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('acm-upload-status');
+  status.textContent = 'Uploading…';
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('acm-url').value = reader.result;
+    status.textContent = '✓ File loaded as data URL';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function openAddCertModal() {
+  const modal = document.getElementById('add-cert-modal');
+  const sel = document.getElementById('acm-product');
+  sel.innerHTML = '<option value="">Loading products…</option>';
+  modal.style.display = 'flex';
+  try {
+    const pd = await api('GET', '/api/products?limit=200');
+    const prods = pd.products || pd.data?.products || [];
+    sel.innerHTML = prods.map(p => `<option value="${p.id}">${p.product_name} (${p.sgtin||p.id})</option>`).join('');
+  } catch(e) { sel.innerHTML = '<option>Failed to load</option>'; }
+}
+
+async function saveNewCert() {
+  const pid = document.getElementById('acm-product').value;
+  // product is optional
+  const body = {
+    cert_type:    document.getElementById('acm-type').value,
+    jurisdiction: document.getElementById('acm-juris').value,
+    cert_number:  document.getElementById('acm-number').value || undefined,
+    issuing_body: document.getElementById('acm-body').value || undefined,
+    issued_date:  document.getElementById('acm-issued').value || undefined,
+    expiry_date:  document.getElementById('acm-expiry').value || undefined,
+    cert_url:     document.getElementById('acm-url').value || undefined,
+    notes:        document.getElementById('acm-notes').value || undefined,
+  };
+  try {
+    if (pid) body.product_id = parseInt(pid);
+    await api('POST', '/api/certificates', body);
+    toast('Certificate saved','ok');
+    document.getElementById('add-cert-modal').style.display = 'none';
+    ['acm-number','acm-body','acm-url','acm-notes'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('acm-upload-status').textContent='';
+    loadCertificatesPage();
+  } catch(e) { toast(e.message,'err'); }
+}
+
+async function deleteCertFromPage(pid, cid, btn) {
+  if (!confirm('Delete this certificate?')) return;
+  try {
+    await api('DELETE', `/api/certificates/${cid}`);
+    toast('Deleted','ok');
+    loadCertificatesPage();
+  } catch(e) { toast(e.message,'err'); }
+}
+</script>
+<script>
+function openBase64PDF(url) {
+  if (!url) return;
+  let modal = document.getElementById('pdf-preview-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'pdf-preview-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="width:90vw;height:90vh;display:flex;flex-direction:column;background:#fff;border-radius:12px;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#3b2a1a;">
+          <span style="color:#fff;font-size:13px;font-weight:600;">Certificate Preview</span>
+          <button onclick="document.getElementById('pdf-preview-modal').remove()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;">✕</button>
+        </div>
+        <iframe id="pdf-preview-frame" style="flex:1;border:none;width:100%;"></iframe>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+  document.getElementById('pdf-preview-frame').src = url;
+  document.getElementById('pdf-preview-modal').style.display = 'flex';
 }
 </script>
